@@ -17,6 +17,10 @@
 
 package org.terracotta.angela.client.net;
 
+import org.apache.ignite.Ignite;
+import org.apache.ignite.lang.IgniteRunnable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.client.util.IgniteClientHelper;
 import org.terracotta.angela.common.net.Disruptor;
@@ -25,10 +29,6 @@ import org.terracotta.angela.common.tcconfig.ServerSymbolicName;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
 import org.terracotta.angela.common.topology.InstanceId;
 import org.terracotta.angela.common.topology.Topology;
-import org.apache.ignite.Ignite;
-import org.apache.ignite.lang.IgniteRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -45,13 +45,15 @@ public class ServerToServerDisruptor implements Disruptor {
   //servers to be linked to serve this disruption
   private final Map<ServerSymbolicName, Collection<ServerSymbolicName>> linkedServers;
   private final Ignite ignite;
+  private final int ignitePort;
   private final InstanceId instanceId;
   private final Topology topology;
   private final Consumer<Disruptor> closeHook;
   private volatile DisruptorState state;
 
-  ServerToServerDisruptor(Ignite ignite, InstanceId instanceId, Topology topology, Map<ServerSymbolicName, Collection<ServerSymbolicName>> linkedServers, Consumer<Disruptor> closeHook) {
+  ServerToServerDisruptor(Ignite ignite, int ignitePort, InstanceId instanceId, Topology topology, Map<ServerSymbolicName, Collection<ServerSymbolicName>> linkedServers, Consumer<Disruptor> closeHook) {
     this.ignite = ignite;
+    this.ignitePort = ignitePort;
     this.instanceId = instanceId;
     this.topology = topology;
     this.linkedServers = linkedServers;
@@ -78,7 +80,7 @@ public class ServerToServerDisruptor implements Disruptor {
           .stream()
           .map(topologyServers::get)
           .collect(Collectors.toList()));
-      IgniteClientHelper.executeRemotely(ignite, server.getHostname(), blockRemotely(instanceId, server, otherServers));
+      IgniteClientHelper.executeRemotely(ignite, server.getHostname(), ignitePort, blockRemotely(instanceId, server, otherServers));
     }
 
     state = DisruptorState.DISRUPTED;
@@ -101,7 +103,8 @@ public class ServerToServerDisruptor implements Disruptor {
           .stream()
           .map(topologyServers::get)
           .collect(Collectors.toList()));
-      IgniteClientHelper.executeRemotelyAsync(ignite, server.getHostname(), undisruptRemotely(instanceId, server, otherServers)).get();
+      IgniteClientHelper.executeRemotelyAsync(ignite, server.getHostname(), ignitePort, undisruptRemotely(instanceId, server, otherServers))
+          .get();
     }
     state = DisruptorState.UNDISRUPTED;
   }

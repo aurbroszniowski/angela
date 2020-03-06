@@ -17,30 +17,32 @@
 
 package org.terracotta.angela.client;
 
+import org.apache.ignite.Ignite;
+import org.apache.ignite.lang.IgniteCallable;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.client.util.IgniteClientHelper;
 import org.terracotta.angela.common.ConfigToolExecutionResult;
 import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
 import org.terracotta.angela.common.topology.InstanceId;
-import org.apache.ignite.Ignite;
-import org.apache.ignite.lang.IgniteCallable;
 
 public class ConfigTool {
   private final TerracottaServer terracottaServer;
+  private final int ignitePort;
   private final TerracottaCommandLineEnvironment tcEnv;
   private final Ignite ignite;
   private final InstanceId instanceId;
 
-  ConfigTool(Ignite ignite, InstanceId instanceId, TerracottaServer terracottaServer, TerracottaCommandLineEnvironment tcEnv) {
+  ConfigTool(Ignite ignite, InstanceId instanceId, TerracottaServer terracottaServer, int ignitePort, TerracottaCommandLineEnvironment tcEnv) {
     this.ignite = ignite;
     this.instanceId = instanceId;
     this.terracottaServer = terracottaServer;
+    this.ignitePort = ignitePort;
     this.tcEnv = tcEnv;
   }
 
   public ConfigToolExecutionResult executeCommand(String... arguments) {
     IgniteCallable<ConfigToolExecutionResult> callable = () -> Agent.controller.configTool(instanceId, terracottaServer, tcEnv, arguments);
-    return IgniteClientHelper.executeRemotely(ignite, terracottaServer.getHostname(), callable);
+    return IgniteClientHelper.executeRemotely(ignite, terracottaServer.getHostname(), ignitePort, callable);
   }
 }

@@ -17,10 +17,13 @@
 
 package org.terracotta.angela.common.distribution;
 
+import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.angela.common.ClusterToolExecutionResult;
 import org.terracotta.angela.common.ConfigToolExecutionResult;
 import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
-import org.terracotta.angela.common.TerracottaManagementServerInstance;
+import org.terracotta.angela.common.TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess;
 import org.terracotta.angela.common.TerracottaServerInstance.TerracottaServerInstanceProcess;
 import org.terracotta.angela.common.TerracottaServerState;
 import org.terracotta.angela.common.provider.ConfigurationManager;
@@ -35,9 +38,6 @@ import org.terracotta.angela.common.util.ExternalLoggers;
 import org.terracotta.angela.common.util.HostPort;
 import org.terracotta.angela.common.util.OS;
 import org.terracotta.angela.common.util.TriggeringOutputStream;
-import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 
@@ -53,6 +53,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static java.io.File.separator;
+import static java.util.regex.Pattern.compile;
 import static org.terracotta.angela.common.AngelaProperties.TSA_FULL_LOGGING;
 import static org.terracotta.angela.common.TerracottaServerState.STARTED_AS_ACTIVE;
 import static org.terracotta.angela.common.TerracottaServerState.STARTED_AS_PASSIVE;
@@ -62,8 +64,6 @@ import static org.terracotta.angela.common.topology.PackageType.SAG_INSTALLER;
 import static org.terracotta.angela.common.util.HostAndIpValidator.isValidHost;
 import static org.terracotta.angela.common.util.HostAndIpValidator.isValidIPv4;
 import static org.terracotta.angela.common.util.HostAndIpValidator.isValidIPv6;
-import static java.io.File.separator;
-import static java.util.regex.Pattern.compile;
 
 /**
  * @author Aurelien Broszniowski
@@ -82,8 +82,9 @@ public class Distribution43Controller extends DistributionController {
   }
 
   @Override
-  public TerracottaServerInstanceProcess createTsa(TerracottaServer terracottaServer, File installLocation, Topology topology,
-                                                   Map<ServerSymbolicName, Integer> proxiedPorts, TerracottaCommandLineEnvironment tcEnv, List<String> startUpArgs) {
+  public TerracottaServerInstanceProcess createTsa(TerracottaServer terracottaServer, File installLocation, File workingDir,
+                                                   Topology topology, Map<ServerSymbolicName, Integer> proxiedPorts,
+                                                   TerracottaCommandLineEnvironment tcEnv, List<String> startUpArgs) {
     AtomicReference<TerracottaServerState> stateRef = new AtomicReference<>(STOPPED);
     AtomicReference<TerracottaServerState> tempStateRef = new AtomicReference<>(STOPPED);
 
@@ -119,8 +120,8 @@ public class Distribution43Controller extends DistributionController {
 
     WatchedProcess<TerracottaServerState> watchedProcess = new WatchedProcess<>(
         new ProcessExecutor()
-            .command(createTsaCommand(terracottaServer.getServerSymbolicName(), terracottaServer.getId(), topology.getConfigurationManager(), proxiedPorts, installLocation, startUpArgs))
-            .directory(installLocation)
+            .command(createTsaCommand(terracottaServer.getServerSymbolicName(), terracottaServer.getId(), topology.getConfigurationManager(), proxiedPorts, installLocation, workingDir, startUpArgs))
+            .directory(workingDir)
             .environment(env)
             .redirectError(System.err)
             .redirectOutput(serverLogOutputStream),
@@ -200,17 +201,17 @@ public class Distribution43Controller extends DistributionController {
   }
 
   @Override
-  public void configure(String clusterName, File location, String licensePath, Topology topology, Map<ServerSymbolicName, Integer> proxyTsaPorts, SecurityRootDirectory securityRootDirectory, TerracottaCommandLineEnvironment tcEnv, boolean verbose) {
+  public void configure(String clusterName, File kitDir, File workingDir, String licensePath, Topology topology, Map<ServerSymbolicName, Integer> proxyTsaPorts, SecurityRootDirectory securityRootDirectory, TerracottaCommandLineEnvironment tcEnv, boolean verbose) {
     logger.info("There is no licensing step in 4.x");
   }
 
   @Override
-  public ClusterToolExecutionResult invokeClusterTool(File installLocation, TerracottaCommandLineEnvironment tcEnv, String... arguments) {
+  public ClusterToolExecutionResult invokeClusterTool(File kitDir, File workingDir, TerracottaCommandLineEnvironment tcEnv, String... arguments) {
     throw new UnsupportedOperationException("4.x does not have a cluster tool");
   }
 
   @Override
-  public ConfigToolExecutionResult invokeConfigTool(File installLocation, TerracottaCommandLineEnvironment env, String... arguments) {
+  public ConfigToolExecutionResult invokeConfigTool(File kitDir, File workingDir, TerracottaCommandLineEnvironment env, String... arguments) {
     throw new UnsupportedOperationException("4.x does not support config tool");
   }
 
@@ -219,15 +220,12 @@ public class Distribution43Controller extends DistributionController {
    *
    * @return List of Strings representing the start command and its parameters
    */
-  private List<String> createTsaCommand(ServerSymbolicName serverSymbolicName,
-                                        UUID serverId,
-                                        ConfigurationManager configurationManager,
-                                        Map<ServerSymbolicName, Integer> proxiedPorts,
-                                        File installLocation,
+  private List<String> createTsaCommand(ServerSymbolicName serverSymbolicName, UUID serverId, ConfigurationManager configurationManager,
+                                        Map<ServerSymbolicName, Integer> proxiedPorts, File kitLocation, File installLocation,
                                         List<String> startUpArgs) {
     List<String> options = new ArrayList<>();
     // start command
-    options.add(getStartCmd(installLocation));
+    options.add(getStartCmd(kitLocation));
 
     String symbolicName = serverSymbolicName.getSymbolicName();
     if (isValidHost(symbolicName) || isValidIPv4(symbolicName) || isValidIPv6(symbolicName) || symbolicName.isEmpty()) {
@@ -268,24 +266,24 @@ public class Distribution43Controller extends DistributionController {
     return options;
   }
 
-  private String getStartCmd(File installLocation) {
+  private String getStartCmd(File kitLocation) {
     String execPath = "server" + separator + "bin" + separator + "start-tc-server" + OS.INSTANCE.getShellExtension();
     if (distribution.getPackageType() == KIT) {
-      return installLocation.getAbsolutePath() + separator + execPath;
+      return kitLocation.getAbsolutePath() + separator + execPath;
     } else if (distribution.getPackageType() == SAG_INSTALLER) {
-      return installLocation.getAbsolutePath() + separator + terracottaInstallationRoot() + separator + execPath;
+      return kitLocation.getAbsolutePath() + separator + terracottaInstallationRoot() + separator + execPath;
     }
     throw new IllegalStateException("Can not define Terracotta server Start Command for distribution: " + distribution);
   }
 
 
   @Override
-  public TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess startTms(File installLocation, TerracottaCommandLineEnvironment tcEnv) {
+  public TerracottaManagementServerInstanceProcess startTms(File installLocation, File workingDir, TerracottaCommandLineEnvironment tcEnv) {
     throw new UnsupportedOperationException("NOT YET IMPLEMENTED");
   }
 
   @Override
-  public void stopTms(File installLocation, TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess terracottaServerInstanceProcess, TerracottaCommandLineEnvironment tcEnv) {
+  public void stopTms(File installLocation, TerracottaManagementServerInstanceProcess terracottaServerInstanceProcess, TerracottaCommandLineEnvironment tcEnv) {
     throw new UnsupportedOperationException("NOT YET IMPLEMENTED");
   }
 

@@ -27,12 +27,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
-public class FileUtils {
-  public static String replaceWithDoubleSlashes(String path) {
-    return OS.INSTANCE.isWindows() ? path.replace("\\", "\\\\") : path;
-  }
+import static java.nio.file.attribute.PosixFilePermission.GROUP_EXECUTE;
+import static java.nio.file.attribute.PosixFilePermission.OTHERS_EXECUTE;
+import static java.nio.file.attribute.PosixFilePermission.OWNER_EXECUTE;
 
-  public static void cleanupPermissions(Path dest) {
+public class FileUtils {
+  public static void setCorrectPermissions(Path dest) {
     if (!FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
       return;
     }
@@ -46,7 +46,7 @@ public class FileUtils {
           .forEach(path -> {
             try {
               Set<PosixFilePermission> perms = new HashSet<>(Files.getPosixFilePermissions(path));
-              perms.addAll(EnumSet.of(PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OTHERS_EXECUTE));
+              perms.addAll(EnumSet.of(OWNER_EXECUTE, GROUP_EXECUTE, OTHERS_EXECUTE));
               Files.setPosixFilePermissions(path, perms);
             } catch (IOException ioe) {
               throw new UncheckedIOException(ioe);

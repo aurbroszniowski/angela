@@ -39,11 +39,13 @@ import org.terracotta.angela.common.topology.ClientArrayTopology;
 import org.terracotta.angela.common.topology.LicenseType;
 import org.terracotta.angela.common.topology.PackageType;
 import org.terracotta.angela.common.topology.Topology;
+import org.terracotta.angela.common.util.OS;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -66,13 +68,55 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 import static org.terracotta.angela.TestUtils.TC_CONFIG_A;
+import static org.terracotta.angela.common.AngelaProperties.SSH_STRICT_HOST_CHECKING;
 import static org.terracotta.angela.common.clientconfig.ClientArrayConfig.newClientArrayConfig;
 import static org.terracotta.angela.common.distribution.Distribution.distribution;
 import static org.terracotta.angela.common.tcconfig.TcConfig.tcConfig;
 import static org.terracotta.angela.common.topology.Version.version;
 
 public class ClientTest {
+
+  @Test
+  public void testMultipleRemoteClients() throws Exception {
+    // Don't run on Windows as Jenkins Windows machines don't have SSH server installed
+    assumeFalse(OS.INSTANCE.isWindows());
+
+    SSH_STRICT_HOST_CHECKING.setProperty("false");
+    ClientArrayTopology ct = new ClientArrayTopology(distribution(version(Versions.EHCACHE_VERSION), PackageType.KIT, LicenseType.TERRACOTTA_OS),
+        newClientArrayConfig().hostSerie(2, InetAddress.getLocalHost().getHostName()));
+    ConfigurationContext configContext = CustomConfigurationContext.customConfigurationContext()
+        .clientArray(clientArray -> clientArray.license(LicenseType.TERRACOTTA_OS.defaultLicense()).clientArrayTopology(ct));
+    try (ClusterFactory instance = new ClusterFactory("ClientTest::testMultipleRemoteClients", configContext)) {
+      ClientArray clientArray = instance.clientArray();
+      ClientArrayFuture f1 = clientArray.executeOnAll((cluster) -> System.out.println("hello world 1"));
+      ClientArrayFuture f2 = clientArray.executeOnAll((cluster) -> System.out.println("hello world 2"));
+      f1.get();
+      f2.get();
+    } finally {
+      SSH_STRICT_HOST_CHECKING.clearProperty();
+    }
+  }
+
+
+  @Test
+  public void testClient() throws Exception {
+    Distribution distribution = distribution(version(Versions.EHCACHE_VERSION), PackageType.KIT, LicenseType.TERRACOTTA_OS);
+    ConfigurationContext configContext = CustomMultiConfigurationContext.customMultiConfigurationContext()
+        .clientArray(clientArray -> clientArray
+            .clientArrayTopology(new ClientArrayTopology(distribution, newClientArrayConfig().host( "localhost")
+            )));
+
+    try (ClusterFactory instance = new ClusterFactory("ClientTest::testMultipleClientsOnSameHost", configContext)) {
+      try (ClientArray clientArray = instance.clientArray()) {
+        ClientArrayFuture f = clientArray.executeOnAll((cluster) -> System.out.println("hello world"));
+        f.get();
+      }
+    }
+  }
+
+
   @Test
   public void testClientArrayDownloadFiles() throws Exception {
     final String clientHostname = "localhost";

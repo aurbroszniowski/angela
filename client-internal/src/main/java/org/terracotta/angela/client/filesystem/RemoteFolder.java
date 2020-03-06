@@ -17,12 +17,12 @@
 
 package org.terracotta.angela.client.filesystem;
 
-import org.terracotta.angela.agent.Agent;
-import org.terracotta.angela.client.util.IgniteClientHelper;
 import org.apache.commons.io.IOUtils;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.lang.IgniteCallable;
+import org.terracotta.angela.agent.Agent;
+import org.terracotta.angela.client.util.IgniteClientHelper;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -39,18 +39,27 @@ import java.util.zip.ZipInputStream;
 import static java.util.stream.Collectors.toList;
 
 public class RemoteFolder extends RemoteFile {
-  public RemoteFolder(Ignite ignite, String nodeName, String parentName, String name) {
-    super(ignite, nodeName, parentName, name);
+  private final int ignitePort;
+
+  public RemoteFolder(Ignite ignite, String hostname, int ignitePort, String parentName, String name) {
+    super(ignite, hostname, ignitePort, parentName, name);
+    this.ignitePort = ignitePort;
   }
 
   public List<RemoteFile> list() {
     String absoluteName = getAbsoluteName();
-    List<String> remoteFiles = IgniteClientHelper.executeRemotely(ignite, nodeName, (IgniteCallable<List<String>>) () -> Agent.controller.listFiles(absoluteName));
-    List<String> remoteFolders = IgniteClientHelper.executeRemotely(ignite, nodeName, (IgniteCallable<List<String>>) () -> Agent.controller.listFolders(absoluteName));
+    List<String> remoteFiles = IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, (IgniteCallable<List<String>>)() -> Agent.controller
+        .listFiles(absoluteName));
+    List<String> remoteFolders = IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, (IgniteCallable<List<String>>)() -> Agent.controller
+        .listFolders(absoluteName));
 
     List<RemoteFile> result = new ArrayList<>();
-    result.addAll(remoteFiles.stream().map(s -> new RemoteFile(ignite, nodeName, getAbsoluteName(), s)).collect(toList()));
-    result.addAll(remoteFolders.stream().map(s -> new RemoteFolder(ignite, nodeName, getAbsoluteName(), s)).collect(toList()));
+    result.addAll(remoteFiles.stream()
+        .map(s -> new RemoteFile(ignite, hostname, ignitePort, getAbsoluteName(), s))
+        .collect(toList()));
+    result.addAll(remoteFolders.stream()
+        .map(s -> new RemoteFolder(ignite, hostname, ignitePort, getAbsoluteName(), s))
+        .collect(toList()));
     return result;
   }
 
@@ -87,7 +96,7 @@ public class RemoteFolder extends RemoteFile {
   public void upload(String remoteFilename, InputStream localStream) throws IOException {
     byte[] data = IOUtils.toByteArray(localStream);
     String filename = getAbsoluteName() + "/" + remoteFilename;
-    IgniteClientHelper.executeRemotely(ignite, nodeName, () -> Agent.controller.uploadFile(filename, data));
+    IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, () -> Agent.controller.uploadFile(filename, data));
   }
 
   @Override
@@ -95,7 +104,7 @@ public class RemoteFolder extends RemoteFile {
     String foldername = getAbsoluteName();
     byte[] bytes;
     try {
-      bytes = IgniteClientHelper.executeRemotely(ignite, nodeName, () -> Agent.controller.downloadFolder(foldername));
+      bytes = IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, () -> Agent.controller.downloadFolder(foldername));
     } catch (IgniteException ie) {
       throw new IOException("Error downloading remote folder '" + foldername + "' into local folder '" + localPath + "'", ie);
     }

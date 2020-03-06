@@ -29,10 +29,11 @@ import java.nio.file.Paths;
 public enum AngelaProperties {
   ROOT_DIR("angela.rootDir", Paths.get("/data/angela").toAbsolutePath().toString()),
   KIT_INSTALLATION_DIR("angela.kitInstallationDir", null),
-  DIRECT_JOIN("angela.directJoin", null),
   IGNITE_LOGGING("angela.igniteLogging", "false"),
   NODE_NAME("angela.nodeName", IpUtils.getHostName()),
-  PORT_RANGE("angela.portRange", "1000"),
+  PORT("angela.port", "1"),
+  DIRECT_JOIN("angela.directJoin", ""),
+  SKIP_KIT_COPY_LOCALHOST("angela.skipKitCopyLocalhost", "true"),
   SKIP_UNINSTALL("angela.skipUninstall", "false"),
   SSH_USERNAME("angela.ssh.userName", System.getProperty("user.name")),
   SSH_USERNAME_KEY_PATH("angela.ssh.userName.keyPath", null),

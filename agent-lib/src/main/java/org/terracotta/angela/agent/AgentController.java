@@ -17,6 +17,11 @@
 
 package org.terracotta.angela.agent;
 
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.ignite.Ignite;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.client.RemoteClientManager;
 import org.terracotta.angela.agent.kit.MonitoringInstance;
 import org.terracotta.angela.agent.kit.RemoteKitManager;
@@ -43,11 +48,6 @@ import org.terracotta.angela.common.topology.Topology;
 import org.terracotta.angela.common.util.FileMetadata;
 import org.terracotta.angela.common.util.IgniteCommonHelper;
 import org.terracotta.angela.common.util.ProcessUtil;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.ignite.Ignite;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -71,6 +71,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import static java.util.stream.Collectors.toList;
+import static org.terracotta.angela.common.util.FileUtils.setCorrectPermissions;
 
 /**
  * @author Aurelien Broszniowski
@@ -84,39 +85,42 @@ public class AgentController {
   private final Map<InstanceId, TmsInstall> tmsInstalls = new HashMap<>();
   private final Ignite ignite;
   private final Collection<String> joinedNodes;
+  private final int ignitePort;
   private volatile MonitoringInstance monitoringInstance;
 
-  AgentController(Ignite ignite, Collection<String> joinedNodes) {
+  AgentController(Ignite ignite, Collection<String> joinedNodes, int ignitePort) {
     this.ignite = ignite;
     this.joinedNodes = Collections.unmodifiableList(new ArrayList<>(joinedNodes));
+    this.ignitePort = ignitePort;
   }
 
   public boolean installTsa(InstanceId instanceId,
                             TerracottaServer terracottaServer,
-                            boolean offline,
                             License license,
                             String kitInstallationName,
                             Distribution distribution,
                             Topology topology) {
     TerracottaInstall terracottaInstall = kitsInstalls.get(instanceId);
 
-    File installLocation;
+    File kitLocation;
+    File workingDir;
     if (terracottaInstall == null || !terracottaInstall.installed(distribution)) {
       RemoteKitManager kitManager = new RemoteKitManager(instanceId, distribution, kitInstallationName);
-      boolean isKitAvailable = kitManager.verifyKitAvailability(offline);
-      if (!isKitAvailable) {
+      if (!kitManager.isKitAvailable()) {
         return false;
       }
 
       logger.info("Installing kit for {} from {}", terracottaServer, distribution);
-      installLocation = kitManager.installKit(license);
-      terracottaInstall = kitsInstalls.computeIfAbsent(instanceId, (iid) -> new TerracottaInstall(kitManager.getWorkingKitInstallationPath().toFile()));
+      kitLocation = kitManager.installKit(license, topology.getServersHostnames());
+      workingDir = kitManager.getWorkingDir().toFile();
+      terracottaInstall = kitsInstalls.computeIfAbsent(instanceId, (iid) -> new TerracottaInstall(workingDir.getParentFile()));
     } else {
-      installLocation = terracottaInstall.installLocation(distribution);
+      kitLocation = terracottaInstall.kitLocation(distribution);
+      workingDir = terracottaInstall.installLocation(distribution);
       logger.info("Kit for {} already installed", terracottaServer);
     }
 
-    terracottaInstall.addServer(terracottaServer, installLocation, license, distribution, topology);
+    terracottaInstall.addServer(terracottaServer, kitLocation, workingDir, license, distribution, topology);
 
     return true;
   }
@@ -139,10 +143,9 @@ public class AgentController {
     return licenseFileLocation == null ? null : licenseFileLocation.getPath();
   }
 
-  public boolean installTms(InstanceId instanceId, String tmsHostname,
-                            Distribution distribution, boolean offline, License license,
+  public boolean installTms(InstanceId instanceId, String tmsHostname, Distribution distribution, License license,
                             TmsServerSecurityConfig tmsServerSecurityConfig, String kitInstallationName,
-                            TerracottaCommandLineEnvironment tcEnv) {
+                            TerracottaCommandLineEnvironment tcEnv, Collection<String> hostNames) {
     TmsInstall tmsInstall = tmsInstalls.get(instanceId);
     if (tmsInstall != null) {
       logger.debug("Kit for " + tmsHostname + " already installed");
@@ -152,14 +155,15 @@ public class AgentController {
       logger.debug("Attempting to install kit from cached install for " + tmsHostname);
       RemoteKitManager kitManager = new RemoteKitManager(instanceId, distribution, kitInstallationName);
 
-      boolean isKitAvailable = kitManager.verifyKitAvailability(offline);
-      if (isKitAvailable) {
-        File kitDir = kitManager.installKit(license);
+      if (kitManager.isKitAvailable()) {
+        File kitDir = kitManager.installKit(license, hostNames);
+        File workingDir = kitManager.getWorkingDir().toFile();
+
         File tmcProperties = new File(kitDir, "/tools/management/conf/tmc.properties");
         if (tmsServerSecurityConfig != null) {
           enableTmsSecurity(tmcProperties, tmsServerSecurityConfig);
         }
-        tmsInstalls.put(instanceId, new TmsInstall(distribution, kitDir, tcEnv));
+        tmsInstalls.put(instanceId, new TmsInstall(distribution, kitDir, workingDir, tcEnv));
         return true;
       } else {
         return false;
@@ -418,7 +422,7 @@ public class AgentController {
 
   public int spawnClient(InstanceId instanceId, TerracottaCommandLineEnvironment tcEnv) {
     RemoteClientManager remoteClientManager = new RemoteClientManager(instanceId);
-    return remoteClientManager.spawnClient(instanceId, tcEnv, joinedNodes);
+    return remoteClientManager.spawnClient(instanceId, tcEnv, joinedNodes, ignitePort);
   }
 
   public void downloadFiles(InstanceId instanceId, File installDir) {
@@ -458,6 +462,7 @@ public class AgentController {
           logger.debug("downloaded " + fileMetadata);
         }
       }
+      setCorrectPermissions(installDir.toPath());
     } catch (Exception e) {
       throw new RuntimeException("Cannot download files to " + installDir.getAbsolutePath(), e);
     }

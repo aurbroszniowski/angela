@@ -17,14 +17,6 @@
 
 package org.terracotta.angela.client;
 
-import org.terracotta.angela.agent.Agent;
-import org.terracotta.angela.agent.kit.LocalKitManager;
-import org.terracotta.angela.client.filesystem.RemoteFolder;
-import org.terracotta.angela.client.util.IgniteClientHelper;
-import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
-import org.terracotta.angela.common.clientconfig.ClientId;
-import org.terracotta.angela.common.cluster.Cluster;
-import org.terracotta.angela.common.topology.InstanceId;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteException;
 import org.apache.ignite.IgniteInterruptedException;
@@ -34,6 +26,14 @@ import org.apache.ignite.lang.IgniteFutureTimeoutException;
 import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.terracotta.angela.agent.Agent;
+import org.terracotta.angela.agent.kit.LocalKitManager;
+import org.terracotta.angela.client.filesystem.RemoteFolder;
+import org.terracotta.angela.client.util.IgniteClientHelper;
+import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
+import org.terracotta.angela.common.clientconfig.ClientId;
+import org.terracotta.angela.common.cluster.Cluster;
+import org.terracotta.angela.common.topology.InstanceId;
 
 import java.io.Closeable;
 import java.io.File;
@@ -56,6 +56,7 @@ public class Client implements Closeable {
 
   private final static Logger logger = LoggerFactory.getLogger(Client.class);
 
+  private final int ignitePort;
   private final InstanceId instanceId;
   private final ClientId clientId;
   private final Ignite ignite;
@@ -64,7 +65,8 @@ public class Client implements Closeable {
   private boolean closed = false;
 
 
-  Client(Ignite ignite, InstanceId instanceId, ClientId clientId, TerracottaCommandLineEnvironment tcEnv, LocalKitManager localKitManager) {
+  Client(Ignite ignite, int ignitePort, InstanceId instanceId, ClientId clientId, TerracottaCommandLineEnvironment tcEnv, LocalKitManager localKitManager) {
+    this.ignitePort = ignitePort;
     this.instanceId = instanceId;
     this.clientId = clientId;
     this.ignite = ignite;
@@ -86,9 +88,10 @@ public class Client implements Closeable {
     logger.info("Spawning client '{}' on {}", instanceId, clientId);
 
     try {
-      IgniteClientHelper.uploadClientJars(ignite, getHostname(), instanceId, listClasspathFiles(localKitManager));
+      IgniteClientHelper.uploadClientJars(ignite, getHostname(), ignitePort, instanceId, listClasspathFiles(localKitManager));
 
-      int pid = IgniteClientHelper.executeRemotely(ignite, getHostname(), (IgniteCallable<Integer>) () -> Agent.controller.spawnClient(instanceId, tcEnv));
+      int pid = IgniteClientHelper.executeRemotely(ignite, getHostname(), ignitePort, (IgniteCallable<Integer>)() ->
+          Agent.controller.spawnClient(instanceId, tcEnv));
       logger.info("client '{}' on {} started with PID {}", instanceId, clientId, pid);
 
       return pid;
@@ -105,7 +108,8 @@ public class Client implements Closeable {
     boolean substituteClientJars = localKitManager.getDistribution() != null;
     List<File> jars = new ArrayList<>();
     for (String classpathJarName : classpathJarNames) {
-      if (classpathJarName.startsWith(javaHome.getPath()) || classpathJarName.startsWith(javaHome.getParentFile().getPath())) {
+      if (classpathJarName.startsWith(javaHome.getPath()) || classpathJarName.startsWith(javaHome.getParentFile()
+          .getPath())) {
         logger.debug("Skipping {} as it is part of the JVM", classpathJarName);
         continue; // part of the JVM, skip it
       }
@@ -113,7 +117,8 @@ public class Client implements Closeable {
 
       File equivalentClientJar = localKitManager.equivalentClientJar(classpathFile);
       if (substituteClientJars && equivalentClientJar != null) {
-        logger.debug("Skipping upload of classpath file as kit contains equivalent jar in client libs : {}", classpathFile.getName());
+        logger.debug("Skipping upload of classpath file as kit contains equivalent jar in client libs : {}", classpathFile
+            .getName());
         jars.add(equivalentClientJar);
         continue;
       }
@@ -132,7 +137,7 @@ public class Client implements Closeable {
   }
 
   Future<Void> submit(ClientId clientId, ClientJob clientJob) {
-    IgniteFuture<Void> igniteFuture = IgniteClientHelper.executeRemotelyAsync(ignite, instanceId.toString(), (IgniteCallable<Void>) () -> {
+    IgniteFuture<Void> igniteFuture = IgniteClientHelper.executeRemotelyAsync(ignite, instanceId.toString(), ignitePort, (IgniteCallable<Void>)() -> {
       try {
         clientJob.run(new Cluster(ignite, clientId));
         return null;
@@ -152,7 +157,7 @@ public class Client implements Closeable {
   }
 
   public RemoteFolder browse(String root) {
-    return new RemoteFolder(ignite, instanceId.toString(), null, root);
+    return new RemoteFolder(ignite, instanceId.toString(), ignitePort, null, root);
   }
 
   public InstanceId getInstanceId() {
@@ -177,7 +182,7 @@ public class Client implements Closeable {
     stop();
     if (!Boolean.parseBoolean(SKIP_UNINSTALL.getValue())) {
       logger.info("Wiping up client '{}' on {}", instanceId, clientId);
-      IgniteClientHelper.executeRemotely(ignite, getHostname(), (IgniteRunnable)() -> Agent.controller.deleteClient(instanceId));
+      IgniteClientHelper.executeRemotely(ignite, getHostname(), ignitePort, (IgniteRunnable)() -> Agent.controller.deleteClient(instanceId));
     }
   }
 
@@ -188,7 +193,7 @@ public class Client implements Closeable {
     stopped = true;
 
     logger.info("Killing client '{}' on {}", instanceId, clientId);
-    IgniteClientHelper.executeRemotely(ignite, getHostname(), (IgniteRunnable)() -> Agent.controller.stopClient(instanceId, subClientPid));
+    IgniteClientHelper.executeRemotely(ignite, getHostname(), ignitePort, (IgniteRunnable)() -> Agent.controller.stopClient(instanceId, subClientPid));
   }
 
   static class ClientJobFuture<V> implements Future<V> {
@@ -218,7 +223,7 @@ public class Client implements Closeable {
       try {
         return igniteFuture.get();
       } catch (IgniteInterruptedException iie) {
-        throw (InterruptedException) new InterruptedException().initCause(iie);
+        throw (InterruptedException)new InterruptedException().initCause(iie);
       } catch (IgniteException ie) {
         RemoteExecutionException ree = lookForRemoteExecutionException(ie);
         if (ree != null) {
@@ -234,9 +239,9 @@ public class Client implements Closeable {
       try {
         return igniteFuture.get(timeout, unit);
       } catch (IgniteInterruptedException iie) {
-        throw (InterruptedException) new InterruptedException().initCause(iie);
+        throw (InterruptedException)new InterruptedException().initCause(iie);
       } catch (IgniteFutureTimeoutException ifte) {
-        throw (TimeoutException) new TimeoutException().initCause(ifte);
+        throw (TimeoutException)new TimeoutException().initCause(ifte);
       } catch (IgniteException ie) {
         RemoteExecutionException ree = lookForRemoteExecutionException(ie);
         if (ree != null) {
@@ -249,7 +254,7 @@ public class Client implements Closeable {
 
     private static RemoteExecutionException lookForRemoteExecutionException(Throwable t) {
       if (t instanceof RemoteExecutionException) {
-        return (RemoteExecutionException) t;
+        return (RemoteExecutionException)t;
       } else if (t == null) {
         return null;
       } else {

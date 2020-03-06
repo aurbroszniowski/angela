@@ -23,11 +23,11 @@ import org.terracotta.angela.common.topology.Version;
 
 import java.util.Objects;
 
-import static org.terracotta.angela.common.topology.LicenseType.TERRACOTTA_OS;
+import static java.util.Objects.requireNonNull;
 import static org.terracotta.angela.common.topology.LicenseType.GO;
 import static org.terracotta.angela.common.topology.LicenseType.MAX;
 import static org.terracotta.angela.common.topology.LicenseType.TERRACOTTA;
-import static java.util.Objects.requireNonNull;
+import static org.terracotta.angela.common.topology.LicenseType.TERRACOTTA_OS;
 
 /**
  * @author Aurelien Broszniowski
@@ -84,9 +84,14 @@ public class Distribution {
   }
 
   public DistributionController createDistributionController() {
-    if ((version.getMajor() == 10 && version.getMinor() == 7) || (version.getMajor() == 5 && version.getMinor() == 7)) {
+    if ((version.getMajor() == 10 && version.getMinor() >= 7) //tc-ee 10.7
+        || (version.getMajor() == 5 && version.getMinor() >= 7) //tc-oss 5.7
+        || (version.getMajor() == 3 && version.getMinor() == 8 && version.getRevision() > 1) //ehcache 3.8.2 onwards
+        || (version.getMajor() == 3 && version.getMinor() >= 9) //ehcache 3.9-SNAPSHOT
+    ) {
       return new Distribution107Controller(this);
     }
+
     if (version.getMajor() == 10 || version.getMajor() == 3) {
       return new Distribution102Controller(this);
     } else {
@@ -94,7 +99,7 @@ public class Distribution {
         return new Distribution43Controller(this);
       }
     }
-    throw new IllegalStateException("Cannot create a DistributionController with Version: " + version);
+    throw new IllegalStateException("Cannot create a DistributionController for version: " + version);
   }
 
   @Override

@@ -17,61 +17,62 @@
 
 package org.terracotta.angela.client.util;
 
-import org.terracotta.angela.agent.Agent;
-import org.terracotta.angela.agent.client.RemoteClientManager;
-import org.terracotta.angela.agent.kit.RemoteKitManager;
-import org.terracotta.angela.common.distribution.Distribution;
-import org.terracotta.angela.common.topology.InstanceId;
-import org.terracotta.angela.common.util.AngelaVersion;
-import org.terracotta.angela.common.util.FileMetadata;
-import org.terracotta.angela.common.util.IgniteCommonHelper;
 import org.apache.ignite.Ignite;
-import org.apache.ignite.IgniteException;
 import org.apache.ignite.cluster.ClusterGroup;
 import org.apache.ignite.lang.IgniteCallable;
 import org.apache.ignite.lang.IgniteFuture;
 import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.terracotta.angela.agent.Agent;
+import org.terracotta.angela.agent.client.RemoteClientManager;
+import org.terracotta.angela.agent.kit.RemoteKitManager;
+import org.terracotta.angela.common.distribution.Distribution;
+import org.terracotta.angela.common.topology.InstanceId;
+import org.terracotta.angela.common.util.FileMetadata;
+import org.terracotta.angela.common.util.IgniteCommonHelper;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 public class IgniteClientHelper {
 
   private final static Logger logger = LoggerFactory.getLogger(IgniteClientHelper.class);
 
-  public static void executeRemotely(Ignite ignite, String hostname, IgniteRunnable job) {
-    executeRemotelyAsync(ignite, hostname, job).get();
+  public static void executeRemotely(Ignite ignite, String hostname, int ignitePort, IgniteRunnable job) {
+    executeRemotelyAsync(ignite, hostname, ignitePort, job).get();
   }
 
-  public static IgniteFuture<Void> executeRemotelyAsync(Ignite ignite, String hostname, IgniteRunnable job) {
-    IgniteClientHelper.checkAgentHealth(ignite, hostname);
-    ClusterGroup location = ignite.cluster().forAttribute("nodename", hostname);
+  public static IgniteFuture<Void> executeRemotelyAsync(Ignite ignite, String hostname, int ignitePort, IgniteRunnable job) {
+    IgniteClientHelper.checkAgentHealth(ignite, hostname, ignitePort);
+    logger.debug("Executing job on {}", getNodeName(hostname, ignitePort));
+    IgniteCommonHelper.displayCluster(ignite);
+
+    ClusterGroup location = ignite.cluster().forAttribute("nodename", getNodeName(hostname, ignitePort));
     return ignite.compute(location).runAsync(job);
   }
 
-  public static <R> R executeRemotely(Ignite ignite, String hostname, IgniteCallable<R> job) {
-    return executeRemotelyAsync(ignite, hostname, job).get();
+  public static <R> R executeRemotely(Ignite ignite, String hostname, int ignitePort, IgniteCallable<R> job) {
+    return executeRemotelyAsync(ignite, hostname, ignitePort, job).get();
   }
 
-  public static <R> IgniteFuture<R> executeRemotelyAsync(Ignite ignite, String hostname, IgniteCallable<R> job) {
-    IgniteClientHelper.checkAgentHealth(ignite, hostname);
-    ClusterGroup location = ignite.cluster().forAttribute("nodename", hostname);
+  public static <R> IgniteFuture<R> executeRemotelyAsync(Ignite ignite, String hostname, int ignitePort, IgniteCallable<R> job) {
+    IgniteClientHelper.checkAgentHealth(ignite, hostname, ignitePort);
+    logger.debug("Executing job on {}", getNodeName(hostname, ignitePort));
+    ClusterGroup location = ignite.cluster().forAttribute("nodename", getNodeName(hostname, ignitePort));
     return ignite.compute(location).callAsync(job);
   }
 
-  private static void checkAgentHealth(Ignite ignite, String nodeName) {
+  private static void checkAgentHealth(Ignite ignite, String hostname, int ignitePort) {
+/* TODO
+    final String nodeName = getNodeName(hostname, ignitePort);
     ClusterGroup location = ignite.cluster().forAttribute("nodename", nodeName);
     IgniteFuture<Collection<Map<String, ?>>> future = ignite.compute(location)
-        .broadcastAsync((IgniteCallable<Map<String, ?>>) () -> Agent.controller.getNodeAttributes());
+        .broadcastAsync((IgniteCallable<Map<String, ?>>)() -> Agent.controller.getNodeAttributes());
     try {
       Collection<Map<String, ?>> attributeMaps = future.get(60, TimeUnit.SECONDS);
       if (attributeMaps.size() != 1) {
@@ -83,19 +84,25 @@ public class IgniteClientHelper {
       }
       if (!AngelaVersion.getAngelaVersion().equals(attributeMap.get("angela.version"))) {
         throw new IllegalStateException("Agent " + nodeName + " is running version [" + attributeMap.get("angela.version") + "]" +
-            " but the expected version is [" + AngelaVersion.getAngelaVersion() + "]");
+                                        " but the expected version is [" + AngelaVersion.getAngelaVersion() + "]");
       }
     } catch (IgniteException e) {
+      e.printStackTrace();
       throw new IllegalStateException("Node with name '" + nodeName + "' not found in the cluster", e);
     }
+*/
   }
 
-  public static void uploadKit(Ignite ignite, String hostname, InstanceId instanceId, Distribution distribution,
+  private static String getNodeName(String nodeName, int ignitePort) {
+    return nodeName + ":" + ignitePort;
+  }
+
+  public static void uploadKit(Ignite ignite, String hostname, int ignitePort, InstanceId instanceId, Distribution distribution,
                                String kitInstallationName, File kitInstallationPath) throws IOException, InterruptedException {
     IgniteFuture<Void> remoteDownloadFuture = executeRemotelyAsync(
         ignite,
         hostname,
-        () -> {
+        ignitePort, () -> {
           RemoteKitManager remoteKitManager = new RemoteKitManager(instanceId, distribution, kitInstallationName);
           File installDir = remoteKitManager.getKitInstallationPath().getParent().toFile();
           Agent.controller.downloadFiles(instanceId, installDir);
@@ -105,9 +112,9 @@ public class IgniteClientHelper {
     uploadFiles(ignite, instanceId, Collections.singletonList(kitInstallationPath), remoteDownloadFuture);
   }
 
-  public static void uploadClientJars(Ignite ignite, String hostname, InstanceId instanceId, List<File> filesToUpload) throws IOException, InterruptedException {
+  public static void uploadClientJars(Ignite ignite, String hostname, int ignitePort, InstanceId instanceId, List<File> filesToUpload) throws IOException, InterruptedException {
     IgniteFuture<Void> remoteDownloadFuture = executeRemotelyAsync(ignite, hostname,
-        () -> Agent.controller.downloadFiles(instanceId, new RemoteClientManager(instanceId).getClientClasspathRoot()));
+        ignitePort, () -> Agent.controller.downloadFiles(instanceId, new RemoteClientManager(instanceId).getClientClasspathRoot()));
 
     uploadFiles(ignite, instanceId, filesToUpload, remoteDownloadFuture);
   }

@@ -17,6 +17,8 @@
 
 package org.terracotta.angela.client;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.client.config.ClientArrayConfigurationContext;
 import org.terracotta.angela.client.config.ConfigurationContext;
@@ -28,22 +30,9 @@ import org.terracotta.angela.common.cluster.Cluster;
 import org.terracotta.angela.common.metrics.HardwareMetric;
 import org.terracotta.angela.common.metrics.MonitoringCommand;
 import org.terracotta.angela.common.topology.InstanceId;
-import org.terracotta.angela.common.util.DirectoryUtils;
-import org.terracotta.angela.common.util.HostPort;
-import org.apache.ignite.Ignite;
-import org.apache.ignite.IgniteException;
-import org.apache.ignite.Ignition;
-import org.apache.ignite.configuration.IgniteConfiguration;
-import org.apache.ignite.logger.NullLogger;
-import org.apache.ignite.logger.slf4j.Slf4jLogger;
-import org.apache.ignite.spi.discovery.tcp.TcpDiscoverySpi;
-import org.apache.ignite.spi.discovery.tcp.ipfinder.vm.TcpDiscoveryVmIpFinder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -51,17 +40,17 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
-import static org.terracotta.angela.common.AngelaProperties.IGNITE_LOGGING;
+import static org.terracotta.angela.common.util.IpUtils.isLocal;
+
+import static org.terracotta.angela.common.util.IpUtils.isLocal;
 
 public class ClusterFactory implements AutoCloseable {
-  private static final Logger LOGGER = LoggerFactory.getLogger(ClusterFactory.class);
+  private static final Logger logger = LoggerFactory.getLogger(ClusterFactory.class);
 
   private static final String TSA = "tsa";
   private static final String TMS = "tms";
@@ -75,10 +64,14 @@ public class ClusterFactory implements AutoCloseable {
   private final Map<String, Collection<InstanceId>> nodeToInstanceId = new HashMap<>();
   private final ConfigurationContext configurationContext;
 
-  private Ignite ignite;
-  private Agent.Node localAgent;
+//  private Ignite ignite;
+  private Agent localAgent;
   private transient RemoteAgentLauncher remoteAgentLauncher;
   private InstanceId monitorInstanceId;
+
+  private SecureRandom rnd = new SecureRandom();
+  private Map<String, String> agentsInstance = new HashMap<>();
+  private final int ignitePort;
 
   public ClusterFactory(String idPrefix, ConfigurationContext configurationContext) {
     // Using UTC to have consistent layout even in case of timezone skew between client and server.
@@ -86,128 +79,56 @@ public class ClusterFactory implements AutoCloseable {
     this.instanceIndex = new AtomicInteger();
     this.configurationContext = configurationContext;
     this.remoteAgentLauncher = configurationContext.remoting().buildRemoteAgentLauncher();
+    this.ignitePort = 40000 + 100 * rnd.nextInt(100);
+    this.localAgent = new Agent();
+    this.localAgent.startCluster(Collections.singleton("localhost:" + ignitePort), "localhost:" + ignitePort, ignitePort);
+    agentsInstance.put("localhost", "localhost:" + ignitePort);
   }
 
-  private InstanceId init(String type, Collection<String> targetServerNames) {
-    if (targetServerNames.isEmpty()) {
+  private InstanceId init(String type, Collection<String> hostnames) {
+    if (hostnames.isEmpty()) {
       throw new IllegalArgumentException("Cannot initialize with 0 server");
     }
-
-    boolean foundLocal = isAnyLocal(targetServerNames);
-    boolean allLocal = areAllLocal(targetServerNames);
-    if (foundLocal && !allLocal) {
-      throw new IllegalArgumentException("Cannot mix local and non-local servers : " + targetServerNames);
-    }
-
-    if (!foundLocal && isAnyLocal(nodeToInstanceId.keySet())) {
-      throw new IllegalArgumentException("local agent started, connection to remote agents '" + targetServerNames + "' is not possible");
-    }
-
-    if (foundLocal) {
-      if (nodeToInstanceId.size() > 1 || (nodeToInstanceId.size() == 1 && !isAnyLocal(nodeToInstanceId.keySet()))) {
-        throw new IllegalArgumentException("remote agents '" + nodeToInstanceId.keySet() + "' already started, connecting to local is not possible");
-      }
-    }
-
     InstanceId instanceId = new InstanceId(idPrefix + "-" + instanceIndex.getAndIncrement(), type);
-    for (String targetServerName : targetServerNames) {
-      if (targetServerName == null) {
+    for (String hostname : hostnames) {
+      if (hostname == null) {
         throw new IllegalArgumentException("Cannot initialize with a null server name");
       }
 
-      if (!isLocal(targetServerName)) {
-        Set<String> nodesToJoin = new HashSet<>();
-        nodesToJoin.addAll(nodeToInstanceId.keySet());
-        nodesToJoin.addAll(targetServerNames);
-        LOGGER.info("Target server name: {} is not local. Using remoting agent for connection to: {}", targetServerName, nodesToJoin);
-        remoteAgentLauncher.remoteStartAgentOn(targetServerName, nodesToJoin);
-      }
+      if (!isLocal(hostname) && !agentsInstance.containsKey(hostname)) {
+        final String nodeName = hostname + ":" + ignitePort;
 
-      nodeToInstanceId.compute(targetServerName, (s, instanceIds) -> {
-        if (instanceIds == null) {
-          return Collections.singleton(instanceId);
+        StringBuilder addressesToDiscover = new StringBuilder();
+        for (String agentAddress : agentsInstance.values()) {
+          addressesToDiscover.append(agentAddress).append(",");
         }
-        List<InstanceId> list = new ArrayList<>(instanceIds);
-        list.add(instanceId);
-        return Collections.unmodifiableCollection(list);
-      });
-    }
-
-    if (ignite == null) {
-      if (allLocal) {
-        LOGGER.info("spawning local agent");
-        localAgent = new Agent.Node(targetServerNames.iterator().next(), Collections.emptyList());
-      }
-
-      TcpDiscoverySpi spi = new TcpDiscoverySpi();
-      TcpDiscoveryVmIpFinder ipFinder = new TcpDiscoveryVmIpFinder(true);
-      ipFinder.setAddresses(targetServerNames.stream()
-          .map(targetServerName -> new HostPort(targetServerName, 40000).getHostPort())
-          .collect(Collectors.toList()));
-      spi.setJoinTimeout(10000);
-      spi.setIpFinder(ipFinder);
-
-      IgniteConfiguration cfg = new IgniteConfiguration();
-      cfg.setDiscoverySpi(spi);
-      cfg.setClientMode(true);
-      DirectoryUtils.createAndValidateDir(Agent.IGNITE_DIR);
-      cfg.setIgniteHome(Agent.IGNITE_DIR.resolve(System.getProperty("user.name")).toString());
-      cfg.setPeerClassLoadingEnabled(true);
-      boolean enableLogging = Boolean.getBoolean(IGNITE_LOGGING.getValue());
-      cfg.setGridLogger(enableLogging ? new Slf4jLogger() : new NullLogger());
-      cfg.setIgniteInstanceName("Instance@" + instanceId);
-      cfg.setMetricsLogFrequency(0);
-
-      try {
-        this.ignite = Ignition.start(cfg);
-      } catch (IgniteException e) {
-        throw new RuntimeException("Cannot start angela; error connecting to agents : " + targetServerNames, e);
+        if (addressesToDiscover.length()> 0 ) {
+          addressesToDiscover.deleteCharAt(addressesToDiscover.length() - 1);
+        }
+        remoteAgentLauncher.remoteStartAgentOn(hostname, nodeName, ignitePort, addressesToDiscover.toString());
+        // start remote agent
+        agentsInstance.put(hostname, nodeName);
       }
     }
+
+    logger.info("Agents instance (size = {}) : ", agentsInstance.values().size());
+    agentsInstance.values().forEach(value -> logger.info("- agent instance : {}", value));
 
     return instanceId;
   }
 
-  private static boolean isLocal(String targetServerName) {
-    InetAddress address;
-    try {
-      address = InetAddress.getByName(targetServerName);
-    } catch (UnknownHostException e) {
-      throw new RuntimeException(e);
-    }
-    return address.isLoopbackAddress() || address.isLinkLocalAddress();
-  }
-
-  private static boolean areAllLocal(Collection<String> targetServerNames) {
-    for (String targetServerName : targetServerNames) {
-      if (!isLocal(targetServerName)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private static boolean isAnyLocal(Collection<String> targetServerNames) {
-    for (String targetServerName : targetServerNames) {
-      if (isLocal(targetServerName)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   public Cluster cluster() {
-    if (ignite == null) {
+    if (this.localAgent.getIgnite() == null) {
       throw new IllegalStateException("No cluster component started");
     }
-    return new Cluster(ignite);
+    return new Cluster(this.localAgent.getIgnite());
   }
 
   public Tsa tsa() {
     TsaConfigurationContext tsaConfigurationContext = configurationContext.tsa();
     InstanceId instanceId = init(TSA, tsaConfigurationContext.getTopology().getServersHostnames());
 
-    Tsa tsa = new Tsa(ignite, instanceId, tsaConfigurationContext);
+    Tsa tsa = new Tsa(this.localAgent.getIgnite(), ignitePort, instanceId, tsaConfigurationContext);
     controllers.add(tsa);
     return tsa;
   }
@@ -216,7 +137,7 @@ public class ClusterFactory implements AutoCloseable {
     TmsConfigurationContext tmsConfigurationContext = configurationContext.tms();
     InstanceId instanceId = init(TMS, Collections.singletonList(tmsConfigurationContext.getHostname()));
 
-    Tms tms = new Tms(ignite, instanceId, tmsConfigurationContext);
+    Tms tms = new Tms(this.localAgent.getIgnite(), ignitePort, instanceId, tmsConfigurationContext);
     controllers.add(tms);
     return tms;
   }
@@ -225,8 +146,8 @@ public class ClusterFactory implements AutoCloseable {
     ClientArrayConfigurationContext clientArrayConfigurationContext = configurationContext.clientArray();
     init(CLIENT_ARRAY, clientArrayConfigurationContext.getClientArrayTopology().getClientHostnames());
 
-    ClientArray clientArray = new ClientArray(ignite, () -> init(CLIENT_ARRAY, clientArrayConfigurationContext.getClientArrayTopology()
-        .getClientHostnames()), clientArrayConfigurationContext);
+    ClientArray clientArray = new ClientArray(this.localAgent.getIgnite(), ignitePort,
+        () -> init(CLIENT_ARRAY, clientArrayConfigurationContext.getClientArrayTopology().getClientHostnames()), clientArrayConfigurationContext);
     controllers.add(clientArray);
     return clientArray;
   }
@@ -242,11 +163,11 @@ public class ClusterFactory implements AutoCloseable {
 
     if (monitorInstanceId == null) {
       monitorInstanceId = init(MONITOR, hostnames);
-      ClusterMonitor clusterMonitor = new ClusterMonitor(ignite, monitorInstanceId, hostnames, commands);
+      ClusterMonitor clusterMonitor = new ClusterMonitor(this.localAgent.getIgnite(), ignitePort, monitorInstanceId, hostnames, commands);
       controllers.add(clusterMonitor);
       return clusterMonitor;
     } else {
-      return new ClusterMonitor(ignite, monitorInstanceId, hostnames, commands);
+      return new ClusterMonitor(this.localAgent.getIgnite(), ignitePort, monitorInstanceId, hostnames, commands);
     }
   }
 
@@ -258,19 +179,12 @@ public class ClusterFactory implements AutoCloseable {
       try {
         controller.close();
       } catch (Exception e) {
+        e.printStackTrace();
         exceptions.add(e);
       }
     }
     controllers.clear();
 
-    if (ignite != null) {
-      try {
-        ignite.close();
-      } catch (Exception e) {
-        exceptions.add(e);
-      }
-      ignite = null;
-    }
     nodeToInstanceId.clear();
 
     monitorInstanceId = null;
@@ -278,15 +192,17 @@ public class ClusterFactory implements AutoCloseable {
     try {
       remoteAgentLauncher.close();
     } catch (Exception e) {
+      e.printStackTrace();
       exceptions.add(e);
     }
     remoteAgentLauncher = null;
 
     if (localAgent != null) {
       try {
-        LOGGER.info("shutting down local agent");
+        logger.info("shutting down local agent");
         localAgent.close();
       } catch (Exception e) {
+        e.printStackTrace();
         exceptions.add(e);
       }
       localAgent = null;

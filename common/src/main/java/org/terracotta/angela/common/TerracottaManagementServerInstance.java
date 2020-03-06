@@ -29,22 +29,25 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TerracottaManagementServerInstance {
 
   private final DistributionController distributionController;
-  private final File location;
+  private final File installLocation;
+  private final File workingDir;
   private final TerracottaCommandLineEnvironment tcEnv;
   private volatile TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess terracottaManagementServerInstanceProcess = new TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess(new AtomicReference<>(TerracottaManagementServerState.STOPPED));
 
-  public TerracottaManagementServerInstance(final DistributionController distributionController, final File location, TerracottaCommandLineEnvironment tcEnv) {
+  public TerracottaManagementServerInstance(final DistributionController distributionController, final File installLocation,
+                                            File workingDir, TerracottaCommandLineEnvironment tcEnv) {
     this.distributionController = distributionController;
-    this.location = location;
+    this.installLocation = installLocation;
+    this.workingDir = workingDir;
     this.tcEnv = tcEnv;
   }
 
   public void start() {
-    this.terracottaManagementServerInstanceProcess = this.distributionController.startTms(location, tcEnv);
+    this.terracottaManagementServerInstanceProcess = this.distributionController.startTms(installLocation, workingDir, tcEnv);
   }
 
   public void stop() {
-    this.distributionController.stopTms(location, terracottaManagementServerInstanceProcess, tcEnv);
+    this.distributionController.stopTms(installLocation, terracottaManagementServerInstanceProcess, tcEnv);
   }
 
   public TerracottaManagementServerState getTerracottaManagementServerState() {

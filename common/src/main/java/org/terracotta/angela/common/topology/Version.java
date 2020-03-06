@@ -17,8 +17,6 @@
 
 package org.terracotta.angela.common.topology;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 
 import static java.util.Objects.requireNonNull;
@@ -48,7 +46,7 @@ public class Version implements Comparable<Version> {
 
     String[] split = versionToSplit.split("\\.");
     if (split.length == 2 || split.length == 3 || split.length == 5) {
-      this.major = parseMajorVersion(split[0]);
+      this.major = parse(split[0]);
       this.minor = parseMinorVersion(split[1]);
       if (split.length == 2) {
         this.revision = -1;
@@ -66,15 +64,6 @@ public class Version implements Comparable<Version> {
     } else {
       throw new IllegalArgumentException("Cannot parse string: " + version + " into a valid Version object");
     }
-  }
-
-  private int parseMajorVersion(String input) {
-    int majorVersion = parse(input);
-    List<Integer> acceptableVersions = Arrays.asList(3, 4, 10);
-    if (!acceptableVersions.contains(majorVersion)) {
-      throw new IllegalArgumentException("Expected major version to be one of: " + acceptableVersions + ", but found: " + input);
-    }
-    return majorVersion;
   }
 
   private int parseMinorVersion(String input) {
@@ -175,13 +164,13 @@ public class Version implements Comparable<Version> {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    Version version = (Version)o;
+    Version version = (Version) o;
     return major == version.major &&
-           minor == version.minor &&
-           revision == version.revision &&
-           build_major == version.build_major &&
-           build_minor == version.build_minor &&
-           snapshot == version.snapshot;
+        minor == version.minor &&
+        revision == version.revision &&
+        build_major == version.build_major &&
+        build_minor == version.build_minor &&
+        snapshot == version.snapshot;
   }
 
   @Override

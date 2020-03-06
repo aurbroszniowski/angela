@@ -17,14 +17,14 @@
 
 package org.terracotta.angela.client;
 
+import org.apache.ignite.Ignite;
+import org.apache.ignite.lang.IgniteCallable;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.client.util.IgniteClientHelper;
 import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
 import org.terracotta.angela.common.ToolExecutionResult;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
 import org.terracotta.angela.common.topology.InstanceId;
-import org.apache.ignite.Ignite;
-import org.apache.ignite.lang.IgniteCallable;
 
 public class Jcmd {
 
@@ -32,19 +32,22 @@ public class Jcmd {
   private final Ignite ignite;
   private final InstanceId instanceId;
   private final TerracottaServer terracottaServer;
+  private final int ignitePort;
   private final Client client;
 
-  Jcmd(Ignite ignite, InstanceId instanceId, TerracottaServer terracottaServer, TerracottaCommandLineEnvironment tcEnv) {
+  Jcmd(Ignite ignite, InstanceId instanceId, TerracottaServer terracottaServer, int ignitePort, TerracottaCommandLineEnvironment tcEnv) {
     this.ignite = ignite;
     this.instanceId = instanceId;
     this.terracottaServer = terracottaServer;
+    this.ignitePort = ignitePort;
     this.client = null;
     this.tcEnv = tcEnv;
   }
 
-  Jcmd(Ignite ignite, InstanceId instanceId, Client client, TerracottaCommandLineEnvironment tcEnv) {
+  Jcmd(Ignite ignite, InstanceId instanceId, Client client, int ignitePort, TerracottaCommandLineEnvironment tcEnv) {
     this.ignite = ignite;
     this.instanceId = instanceId;
+    this.ignitePort = ignitePort;
     this.terracottaServer = null;
     this.client = client;
     this.tcEnv = tcEnv;
@@ -53,6 +56,7 @@ public class Jcmd {
   /**
    * Execute jcmd on the target JVM. This basically creates and execute a command line looking like the following:
    * ${JAVA_HOME}/bin/jcmd &lt;the JVM's PID&gt; &lt;arguments&gt;
+   *
    * @param arguments The arguments to pass to jcmd after the PID.
    * @return A representation of the jcmd execution
    */
@@ -69,7 +73,7 @@ public class Jcmd {
       throw new AssertionError();
     }
 
-    return IgniteClientHelper.executeRemotely(ignite, hostname, callable);
+    return IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, callable);
   }
 
 }

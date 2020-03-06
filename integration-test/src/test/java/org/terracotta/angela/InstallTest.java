@@ -25,6 +25,7 @@ import org.terracotta.angela.client.config.custom.CustomConfigurationContext;
 import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
 import org.terracotta.angela.common.TerracottaServerState;
 import org.terracotta.angela.common.metrics.HardwareMetric;
+import org.terracotta.angela.common.tcconfig.ServerSymbolicName;
 import org.terracotta.angela.common.tcconfig.TcConfig;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
 import org.terracotta.angela.common.topology.Topology;
@@ -32,6 +33,8 @@ import org.terracotta.angela.common.topology.Topology;
 import java.io.File;
 import java.net.InetAddress;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -62,8 +65,22 @@ public class InstallTest {
     final File resultPath = new File("target", UUID.randomUUID().toString());
 
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
-        .tsa(tsa -> tsa.topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-            tcConfig(version(EHCACHE_VERSION), TC_CONFIG_AP))))
+        .tsa(tsa -> {
+          final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_AP);
+          Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+            put(new ServerSymbolicName("Server1"), 9511);
+            put(new ServerSymbolicName("Server2"), 9512);
+          }};
+          Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+            put(new ServerSymbolicName("Server1"), 9531);
+            put(new ServerSymbolicName("Server2"), 9532);
+          }};
+          tcConfig.updateServerTsaPort(tsaPorts);
+          tcConfig.updateServerGroupPort(groupPorts);
+
+          tsa.topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
+              tcConfig));
+        })
         .monitoring(monitoring -> monitoring.commands(EnumSet.of(HardwareMetric.DISK)));
 
     try (ClusterFactory factory = new ClusterFactory("InstallTest::testHardwareStatsLogs", config)) {
@@ -85,6 +102,16 @@ public class InstallTest {
   public void testSsh() throws Exception {
     TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A);
     tcConfig.updateServerHost(0, InetAddress.getLocalHost().getHostName());
+
+    Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+      put(new ServerSymbolicName("Server1"), 9513);
+    }};
+    Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+      put(new ServerSymbolicName("Server1"), 9533);
+    }};
+    tcConfig.updateServerTsaPort(tsaPorts);
+    tcConfig.updateServerGroupPort(groupPorts);
+
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
         .tsa(tsa -> tsa.topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
             tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A))));
@@ -101,13 +128,25 @@ public class InstallTest {
   @Test
   public void testLocalInstallJava11() throws Exception {
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
-        .tsa(tsa -> tsa
-            .topology(
-                new Topology(
-                    distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-                    tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A)
-                ))
-            .terracottaCommandLineEnvironment(TerracottaCommandLineEnvironment.DEFAULT.withJavaVersion("1.11"))
+        .tsa(tsa -> {
+              final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A);
+              Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9514);
+              }};
+              Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9534);
+              }};
+              tcConfig.updateServerTsaPort(tsaPorts);
+              tcConfig.updateServerGroupPort(groupPorts);
+
+              tsa
+                  .topology(
+                      new Topology(
+                          distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
+                          tcConfig
+                      ))
+                  .terracottaCommandLineEnvironment(TerracottaCommandLineEnvironment.DEFAULT.withJavaVersion("1.11"));
+            }
         );
 
     try (ClusterFactory factory = new ClusterFactory("InstallTest::testLocalInstallJava11", config)) {
@@ -119,8 +158,20 @@ public class InstallTest {
   @Test
   public void testLocalInstall() throws Exception {
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
-        .tsa(tsa -> tsa
-            .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS), tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A))));
+        .tsa(tsa -> {
+          final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A);
+          Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+            put(new ServerSymbolicName("Server1"), 9410);
+          }};
+          Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+            put(new ServerSymbolicName("Server1"), 9535);
+          }};
+          tcConfig.updateServerTsaPort(tsaPorts);
+          tcConfig.updateServerGroupPort(groupPorts);
+
+          tsa
+              .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS), tcConfig));
+        });
 
     try (ClusterFactory factory = new ClusterFactory("InstallTest::testLocalInstall", config)) {
       Tsa tsa = factory.tsa();
@@ -130,10 +181,33 @@ public class InstallTest {
 
   @Test
   public void testTwoTsaCustomConfigsFailWithoutMultiConfig() {
+    final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A);
+    Map<ServerSymbolicName, Integer> tsaPorts1 = new HashMap<ServerSymbolicName, Integer>() {{
+      put(new ServerSymbolicName("Server1"), 9516);
+    }};
+    Map<ServerSymbolicName, Integer> groupPorts1 = new HashMap<ServerSymbolicName, Integer>() {{
+      put(new ServerSymbolicName("Server1"), 9536);
+    }};
+    tcConfig.updateServerTsaPort(tsaPorts1);
+    tcConfig.updateServerGroupPort(groupPorts1);
+
     Topology topology1 = new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-        tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A));
+        tcConfig);
+
+    final TcConfig tcConfigAP = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_AP);
+    Map<ServerSymbolicName, Integer> tsaPorts2 = new HashMap<ServerSymbolicName, Integer>() {{
+      put(new ServerSymbolicName("Server1"), 9517);
+      put(new ServerSymbolicName("Server2"), 9518);
+    }};
+    Map<ServerSymbolicName, Integer> groupPorts2 = new HashMap<ServerSymbolicName, Integer>() {{
+      put(new ServerSymbolicName("Server1"), 9537);
+      put(new ServerSymbolicName("Server2"), 9538);
+    }};
+    tcConfigAP.updateServerTsaPort(tsaPorts2);
+    tcConfigAP.updateServerGroupPort(groupPorts2);
+
     Topology topology2 = new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-        tcConfig(version(EHCACHE_VERSION), TC_CONFIG_AP));
+        tcConfigAP);
 
     try {
       CustomConfigurationContext.customConfigurationContext()
@@ -148,9 +222,23 @@ public class InstallTest {
   @Test
   public void testStopStalledServer() throws Exception {
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
-        .tsa(tsa -> tsa
-            .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-                tcConfig(version(EHCACHE_VERSION), getClass().getResource("/configs/tc-config-ap-consistent.xml"))))
+        .tsa(tsa -> {
+              final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), getClass().getResource("/configs/tc-config-ap-consistent.xml"));
+              Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9519);
+                put(new ServerSymbolicName("Server2"), 9520);
+              }};
+              Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9539);
+                put(new ServerSymbolicName("Server2"), 9540);
+              }};
+              tcConfig.updateServerTsaPort(tsaPorts);
+              tcConfig.updateServerGroupPort(groupPorts);
+
+              tsa
+                  .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
+                      tcConfig));
+            }
         );
 
     try (ClusterFactory factory = new ClusterFactory("InstallTest::testStopStalledServer", config)) {
@@ -169,9 +257,21 @@ public class InstallTest {
   @Test
   public void testStartCreatedServer() throws Exception {
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
-        .tsa(tsa -> tsa
-            .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-                tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A)))
+        .tsa(tsa -> {
+              final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A);
+              Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9521);
+              }};
+              Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9541);
+              }};
+              tcConfig.updateServerTsaPort(tsaPorts);
+              tcConfig.updateServerGroupPort(groupPorts);
+
+              tsa
+                  .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
+                      tcConfig));
+            }
         );
 
     try (ClusterFactory factory = new ClusterFactory("InstallTest::testStartCreatedServer", config)) {
@@ -187,9 +287,21 @@ public class InstallTest {
   @Test(expected = RuntimeException.class)
   public void testServerStartUpWithArg() throws Exception {
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
-        .tsa(tsa -> tsa
-            .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-                tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A)))
+        .tsa(tsa -> {
+              final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_A);
+              Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9522);
+              }};
+              Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9542);
+              }};
+              tcConfig.updateServerTsaPort(tsaPorts);
+              tcConfig.updateServerGroupPort(groupPorts);
+
+              tsa
+                  .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
+                      tcConfig));
+            }
         );
 
     try (ClusterFactory factory = new ClusterFactory("InstallTest::testStartCreatedServer", config)) {
@@ -205,9 +317,23 @@ public class InstallTest {
   @Test
   public void testStopPassive() throws Exception {
     ConfigurationContext config = CustomConfigurationContext.customConfigurationContext()
-        .tsa(tsa -> tsa
-            .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
-                tcConfig(version(EHCACHE_VERSION), TC_CONFIG_AP)))
+        .tsa(tsa -> {
+              final TcConfig tcConfig = tcConfig(version(EHCACHE_VERSION), TC_CONFIG_AP);
+              Map<ServerSymbolicName, Integer> tsaPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9523);
+                put(new ServerSymbolicName("Server2"), 9524);
+              }};
+              Map<ServerSymbolicName, Integer> groupPorts = new HashMap<ServerSymbolicName, Integer>() {{
+                put(new ServerSymbolicName("Server1"), 9543);
+                put(new ServerSymbolicName("Server2"), 9544);
+              }};
+              tcConfig.updateServerTsaPort(tsaPorts);
+              tcConfig.updateServerGroupPort(groupPorts);
+
+              tsa
+                  .topology(new Topology(distribution(version(EHCACHE_VERSION), KIT, TERRACOTTA_OS),
+                      tcConfig));
+            }
         );
 
     try (ClusterFactory factory = new ClusterFactory("InstallTest::testStopPassive", config)) {

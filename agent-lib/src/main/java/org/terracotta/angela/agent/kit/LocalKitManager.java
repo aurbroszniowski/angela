@@ -92,7 +92,7 @@ public class LocalKitManager extends KitManager {
       try {
         lockConcurrentInstall(localInstallerPath);
         if (!isValidLocalInstallerFilePath(offline, localInstallerPath)) {
-          logger.info("Local kit at: {} found to be invalid. Downloading a fresh installer", localInstallerPath);
+          logger.info("Local kit at: {} invalid or absent. Downloading a fresh installer", localInstallerPath);
           kitResolver.downloadLocalInstaller(distribution.getVersion(), distribution.getLicenseType(), distribution.getPackageType(), localInstallerPath);
         }
 
@@ -117,7 +117,7 @@ public class LocalKitManager extends KitManager {
   }
 
   void unlockConcurrentInstall(Path localInstallerPath) {
-    logger.debug(Thread.currentThread().getId() + " unlock");
+    logger.debug("Thread {} unlock", Thread.currentThread().getId());
     File file = localInstallerPath.getParent().resolve(INSTALLATION_LOCK_FILE_NAME).toFile();
     final boolean deleted = file.delete();
     if (!deleted) {
@@ -128,7 +128,7 @@ public class LocalKitManager extends KitManager {
   }
 
   void lockConcurrentInstall(Path localInstallerPath) {
-    logger.debug(Thread.currentThread().getId() + " lock");
+    logger.debug("Thread {} lock", Thread.currentThread().getId());
     Path lockDir = localInstallerPath.getParent();
     lockDir.toFile().mkdirs();
     File file = lockDir.resolve(INSTALLATION_LOCK_FILE_NAME).toFile();
@@ -146,11 +146,11 @@ public class LocalKitManager extends KitManager {
             logger.error("Angela Installer lock file can not be created at {}", file.getAbsolutePath());
           }
         }
-        logger.debug(Thread.currentThread().getId() + " wait");
+        logger.debug("Thread {} wait", Thread.currentThread().getId());
         for (int i = 0; i < 20; i++) {
           Thread.sleep(6000);
           if (file.createNewFile()) {
-            logger.debug(Thread.currentThread().getId() + " pass");
+            logger.debug("Thread {} pass", Thread.currentThread().getId());
             break;
           }
         }
@@ -159,7 +159,7 @@ public class LocalKitManager extends KitManager {
       e.printStackTrace();
       logger.error("Angela Installer lock file issue at {}", file.getAbsolutePath());
     }
-    logger.debug(Thread.currentThread().getId() + " pass");
+    logger.debug("Thread {} pass", Thread.currentThread().getId());
 
   }
 

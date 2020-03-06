@@ -29,7 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.GZIPInputStream;
 
-import static org.terracotta.angela.common.util.FileUtils.cleanupPermissions;
+import static org.terracotta.angela.common.util.FileUtils.setCorrectPermissions;
 
 public class KitUtils {
   public static void extractZip(Path kitInstaller, Path kitDest) {
@@ -39,7 +39,7 @@ public class KitUtils {
       ioe.printStackTrace();
       throw new UncheckedIOException("Error when extracting installer package", ioe);
     }
-    cleanupPermissions(kitDest);
+    setCorrectPermissions(kitDest);
   }
 
   public static void extractArchive(ArchiveInputStream archiveIs, Path pathOutput) throws IOException {
@@ -68,7 +68,7 @@ public class KitUtils {
       ioe.printStackTrace();
       throw new UncheckedIOException("Error when extracting installer package", ioe);
     }
-    cleanupPermissions(kitDest);
+    setCorrectPermissions(kitDest);
   }
 
   public static String getParentDirFromTarGz(Path localInstaller) {

@@ -17,11 +17,17 @@
 
 package org.terracotta.angela.common.distribution;
 
+import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.terracotta.angela.common.AngelaProperties;
 import org.terracotta.angela.common.ClusterToolException;
 import org.terracotta.angela.common.ClusterToolExecutionResult;
 import org.terracotta.angela.common.ConfigToolExecutionResult;
 import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
+import org.terracotta.angela.common.TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess;
 import org.terracotta.angela.common.TerracottaManagementServerState;
+import org.terracotta.angela.common.TerracottaServerInstance.TerracottaServerInstanceProcess;
 import org.terracotta.angela.common.TerracottaServerState;
 import org.terracotta.angela.common.provider.ConfigurationManager;
 import org.terracotta.angela.common.provider.TcConfigManager;
@@ -30,6 +36,7 @@ import org.terracotta.angela.common.tcconfig.SecurityRootDirectory;
 import org.terracotta.angela.common.tcconfig.ServerSymbolicName;
 import org.terracotta.angela.common.tcconfig.TcConfig;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
+import org.terracotta.angela.common.topology.PackageType;
 import org.terracotta.angela.common.topology.Topology;
 import org.terracotta.angela.common.topology.Version;
 import org.terracotta.angela.common.util.ExternalLoggers;
@@ -37,13 +44,6 @@ import org.terracotta.angela.common.util.HostPort;
 import org.terracotta.angela.common.util.OS;
 import org.terracotta.angela.common.util.ProcessUtil;
 import org.terracotta.angela.common.util.TriggeringOutputStream;
-import org.apache.commons.io.FileUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.terracotta.angela.common.AngelaProperties;
-import org.terracotta.angela.common.TerracottaManagementServerInstance;
-import org.terracotta.angela.common.TerracottaServerInstance;
-import org.terracotta.angela.common.topology.PackageType;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 import org.zeroturnaround.exec.StartedProcess;
@@ -63,12 +63,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import static org.terracotta.angela.common.util.HostAndIpValidator.isValidHost;
-import static org.terracotta.angela.common.util.HostAndIpValidator.isValidIPv4;
-import static org.terracotta.angela.common.util.HostAndIpValidator.isValidIPv6;
 import static java.io.File.separator;
 import static java.lang.Integer.parseInt;
 import static java.util.regex.Pattern.compile;
+import static org.terracotta.angela.common.util.HostAndIpValidator.isValidHost;
+import static org.terracotta.angela.common.util.HostAndIpValidator.isValidIPv4;
+import static org.terracotta.angela.common.util.HostAndIpValidator.isValidIPv6;
 
 /**
  * @author Aurelien Broszniowski
@@ -87,8 +87,9 @@ public class Distribution102Controller extends DistributionController {
   }
 
   @Override
-  public TerracottaServerInstance.TerracottaServerInstanceProcess createTsa(TerracottaServer terracottaServer, File installLocation, Topology topology,
-                                                                            Map<ServerSymbolicName, Integer> proxiedPorts, TerracottaCommandLineEnvironment tcEnv, List<String> startUpArgs) {
+  public TerracottaServerInstanceProcess createTsa(TerracottaServer terracottaServer, File installLocation, File workingDir,
+                                                   Topology topology, Map<ServerSymbolicName, Integer> proxiedPorts,
+                                                   TerracottaCommandLineEnvironment tcEnv, List<String> startUpArgs) {
     Map<String, String> env = buildEnv(tcEnv);
 
     AtomicReference<TerracottaServerState> stateRef = new AtomicReference<>(TerracottaServerState.STOPPED);
@@ -102,7 +103,7 @@ public class Distribution102Controller extends DistributionController {
             compile("^.*\\QMoved to State[ PASSIVE-STANDBY ]\\E.*$"),
             mr -> stateRef.set(TerracottaServerState.STARTED_AS_PASSIVE))
         .andTriggerOn(
-            compile("^.*\\QL2 exiting\\E.*$"),
+            compile("^.*\\QL2 Exiting\\E.*$"),
             mr -> stateRef.set(TerracottaServerState.STOPPED))
         .andTriggerOn(
             compile("^.*PID is (\\d+).*$"), mr -> {
@@ -115,8 +116,8 @@ public class Distribution102Controller extends DistributionController {
         );
 
     WatchedProcess<TerracottaServerState> watchedProcess = new WatchedProcess<>(new ProcessExecutor()
-        .command(createTsaCommand(terracottaServer.getServerSymbolicName(), terracottaServer.getId(), topology, proxiedPorts, installLocation, startUpArgs))
-        .directory(installLocation)
+        .command(createTsaCommand(terracottaServer.getServerSymbolicName(), terracottaServer.getId(), topology, proxiedPorts, installLocation, workingDir, startUpArgs))
+        .directory(workingDir)
         .environment(env)
         .redirectError(System.err)
         .redirectOutput(serverLogOutputStream), stateRef, TerracottaServerState.STOPPED);
@@ -132,13 +133,13 @@ public class Distribution102Controller extends DistributionController {
     if (!watchedProcess.isAlive()) {
       throw new RuntimeException("Terracotta server process died in its infancy : " + terracottaServer.getServerSymbolicName());
     }
-    return new TerracottaServerInstance.TerracottaServerInstanceProcess(stateRef, watchedProcess.getPid(), javaPid);
+    return new TerracottaServerInstanceProcess(stateRef, watchedProcess.getPid(), javaPid);
   }
 
   @Override
-  public ClusterToolExecutionResult invokeClusterTool(File installLocation, TerracottaCommandLineEnvironment tcEnv, String... arguments) {
+  public ClusterToolExecutionResult invokeClusterTool(File kitDir, File workingDir, TerracottaCommandLineEnvironment tcEnv, String... arguments) {
     List<String> command = new ArrayList<>();
-    command.add(installLocation
+    command.add(kitDir
         + separator + "tools"
         + separator + "cluster-tool"
         + separator + "bin"
@@ -147,6 +148,7 @@ public class Distribution102Controller extends DistributionController {
 
     try {
       ProcessResult processResult = new ProcessExecutor(command)
+          .directory(workingDir)
           .environment(buildEnv(tcEnv))
           .redirectErrorStream(true)
           .readOutput(true)
@@ -158,15 +160,15 @@ public class Distribution102Controller extends DistributionController {
   }
 
   @Override
-  public ConfigToolExecutionResult invokeConfigTool(File installLocation, TerracottaCommandLineEnvironment env, String... arguments) {
+  public ConfigToolExecutionResult invokeConfigTool(File kitDir, File workingDir, TerracottaCommandLineEnvironment env, String... arguments) {
     throw new UnsupportedOperationException("Config Tool is supported only for a dynamically-configured cluster");
   }
 
   @Override
-  public void configure(String clusterName, File location, String licensePath, Topology topology, Map<ServerSymbolicName, Integer> proxyTsaPorts, SecurityRootDirectory securityRootDirectory, TerracottaCommandLineEnvironment tcEnv, boolean verbose) {
+  public void configure(String clusterName, File kitDir, File workingDir, String licensePath, Topology topology, Map<ServerSymbolicName, Integer> proxyTsaPorts, SecurityRootDirectory securityRootDirectory, TerracottaCommandLineEnvironment tcEnv, boolean verbose) {
     Map<String, String> env = buildEnv(tcEnv);
 
-    File tmpConfigDir = new File(location, "tmp-tc-configs");
+    File tmpConfigDir = new File(workingDir, "tmp-tc-configs");
     if (!tmpConfigDir.mkdir() && !tmpConfigDir.isDirectory()) {
       throw new RuntimeException("Error creating temporary cluster tool TC config folder : " + tmpConfigDir);
     }
@@ -183,14 +185,14 @@ public class Distribution102Controller extends DistributionController {
       modifiedConfigs.add(modifiedConfig);
     }
 
-    List<String> commands = configureTsaLicenseCommand(location, licensePath, modifiedConfigs, clusterName, securityRootDirectory, verbose);
+    List<String> commands = configureTsaLicenseCommand(kitDir, workingDir, licensePath, modifiedConfigs, clusterName, securityRootDirectory, verbose);
 
     logger.debug("Licensing commands: {}", commands);
     logger.debug("Licensing command line environment: {}", tcEnv);
 
     ProcessExecutor executor = new ProcessExecutor()
         .command(commands)
-        .directory(location)
+        .directory(workingDir)
         .environment(env)
         .redirectOutput(Slf4jStream.of(ExternalLoggers.clusterToolLogger).asInfo())
         .redirectError(Slf4jStream.of(ExternalLoggers.clusterToolLogger).asError());
@@ -214,13 +216,14 @@ public class Distribution102Controller extends DistributionController {
     }
   }
 
-  private List<String> configureTsaLicenseCommand(File location, String licensePath, List<TcConfig> tcConfigs, String clusterName, SecurityRootDirectory securityRootDirectory, boolean verbose) {
+  private List<String> configureTsaLicenseCommand(File kitDir, File workingDir, String licensePath, List<TcConfig> tcConfigs,
+                                                  String clusterName, SecurityRootDirectory securityRootDirectory, boolean verbose) {
     List<String> command = new ArrayList<>();
 
-    command.add(getConfigureTsaExecutable(location));
+    command.add(getConfigureTsaExecutable(kitDir));
 
     if (securityRootDirectory != null) {
-      Path securityRootDirectoryPath = location.toPath()
+      Path securityRootDirectoryPath = workingDir.toPath()
           .resolve("cluster-tool-security")
           .resolve("security-root-directory");
       securityRootDirectory.createSecurityRootDirectory(securityRootDirectoryPath);
@@ -244,12 +247,12 @@ public class Distribution102Controller extends DistributionController {
     return command;
   }
 
-  private String getConfigureTsaExecutable(File location) {
+  private String getConfigureTsaExecutable(File kitLocation) {
     String execPath = "tools" + separator + "cluster-tool" + separator + "bin" + separator + "cluster-tool" + OS.INSTANCE.getShellExtension();
     if (distribution.getPackageType() == PackageType.KIT) {
-      return location.getAbsolutePath() + separator + execPath;
+      return kitLocation.getAbsolutePath() + separator + execPath;
     } else if (distribution.getPackageType() == PackageType.SAG_INSTALLER) {
-      return location.getAbsolutePath() + separator + terracottaInstallationRoot() + separator + execPath;
+      return kitLocation.getAbsolutePath() + separator + terracottaInstallationRoot() + separator + execPath;
     }
     throw new IllegalStateException("Can not define TSA licensing Command for distribution: " + distribution);
   }
@@ -259,15 +262,12 @@ public class Distribution102Controller extends DistributionController {
    *
    * @return List of String representing the start command and its parameters
    */
-  private List<String> createTsaCommand(ServerSymbolicName serverSymbolicName,
-                                        UUID serverId,
-                                        Topology topology,
-                                        Map<ServerSymbolicName, Integer> proxiedPorts,
-                                        File installLocation,
+  private List<String> createTsaCommand(ServerSymbolicName serverSymbolicName, UUID serverId, Topology topology,
+                                        Map<ServerSymbolicName, Integer> proxiedPorts, File kitLocation, File installLocation,
                                         List<String> startUpArgs) {
     List<String> options = new ArrayList<>();
     // start command
-    options.add(getTsaCreateExecutable(installLocation));
+    options.add(getTsaCreateExecutable(kitLocation));
 
     String symbolicName = serverSymbolicName.getSymbolicName();
     if (isValidHost(symbolicName) || isValidIPv4(symbolicName) || isValidIPv6(symbolicName) || symbolicName.isEmpty()) {
@@ -303,19 +303,19 @@ public class Distribution102Controller extends DistributionController {
     return options;
   }
 
-  private String getTsaCreateExecutable(File installLocation) {
+  private String getTsaCreateExecutable(File kitLocation) {
     String execPath = "server" + separator + "bin" + separator + "start-tc-server" + OS.INSTANCE.getShellExtension();
     if (distribution.getPackageType() == PackageType.KIT) {
-      return installLocation.getAbsolutePath() + separator + execPath;
+      return kitLocation.getAbsolutePath() + separator + execPath;
     } else if (distribution.getPackageType() == PackageType.SAG_INSTALLER) {
-      return installLocation.getAbsolutePath() + separator + terracottaInstallationRoot() + separator + execPath;
+      return kitLocation.getAbsolutePath() + separator + terracottaInstallationRoot() + separator + execPath;
     }
     throw new IllegalStateException("Can not define Terracotta server Start Command for distribution: " + distribution);
   }
 
 
   @Override
-  public TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess startTms(File installLocation, TerracottaCommandLineEnvironment tcEnv) {
+  public TerracottaManagementServerInstanceProcess startTms(File installLocation, File workingDir, TerracottaCommandLineEnvironment tcEnv) {
     Map<String, String> env = buildEnv(tcEnv);
 
     AtomicReference<TerracottaManagementServerState> stateRef = new AtomicReference<>(TerracottaManagementServerState.STOPPED);
@@ -331,7 +331,7 @@ public class Distribution102Controller extends DistributionController {
 
     WatchedProcess<TerracottaManagementServerState> watchedProcess = new WatchedProcess<>(new ProcessExecutor()
         .command(startTmsCommand(installLocation))
-        .directory(installLocation)
+        .directory(workingDir)
         .environment(env)
         .redirectError(System.err)
         .redirectOutput(outputStream), stateRef, TerracottaManagementServerState.STOPPED);
@@ -348,11 +348,11 @@ public class Distribution102Controller extends DistributionController {
     }
     int wrapperPid = watchedProcess.getPid();
     int javaProcessPid = javaPid.get();
-    return new TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess(stateRef, wrapperPid, javaProcessPid);
+    return new TerracottaManagementServerInstanceProcess(stateRef, wrapperPid, javaProcessPid);
   }
 
   @Override
-  public void stopTms(File installLocation, TerracottaManagementServerInstance.TerracottaManagementServerInstanceProcess terracottaServerInstanceProcess, TerracottaCommandLineEnvironment tcEnv) {
+  public void stopTms(File installLocation, TerracottaManagementServerInstanceProcess terracottaServerInstanceProcess, TerracottaCommandLineEnvironment tcEnv) {
     logger.debug("Destroying TMS process");
     for (Number pid : terracottaServerInstanceProcess.getPids()) {
       try {
@@ -368,10 +368,10 @@ public class Distribution102Controller extends DistributionController {
    *
    * @return String[] representing the start command and its parameters
    */
-  private List<String> startTmsCommand(File installLocation) {
+  private List<String> startTmsCommand(File kitDir) {
     List<String> options = new ArrayList<>();
     // start command
-    options.add(getStartTmsExecutable(installLocation));
+    options.add(getStartTmsExecutable(kitDir));
 
     StringBuilder sb = new StringBuilder();
     for (String option : options) {

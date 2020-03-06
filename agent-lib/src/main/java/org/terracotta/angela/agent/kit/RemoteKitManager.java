@@ -30,8 +30,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 
-import static org.terracotta.angela.common.util.FileUtils.cleanupPermissions;
+import static java.lang.Boolean.parseBoolean;
+import static org.terracotta.angela.common.AngelaProperties.SKIP_KIT_COPY_LOCALHOST;
+import static org.terracotta.angela.common.util.IpUtils.areAllLocal;
 
 /**
  * Download the kit tarball from Kratos
@@ -41,42 +44,46 @@ import static org.terracotta.angela.common.util.FileUtils.cleanupPermissions;
 public class RemoteKitManager extends KitManager {
   private static final Logger logger = LoggerFactory.getLogger(RemoteKitManager.class);
 
-  private final Path workingKitInstallationPath; // the location where we will copy the install
+  private final Path workingDir; // The location containing server logs
 
   public RemoteKitManager(InstanceId instanceId, Distribution distribution, String kitInstallationName) {
     super(distribution);
     this.kitInstallationPath = rootInstallationPath.resolve(kitInstallationName);
-    this.workingKitInstallationPath = Agent.WORK_DIR.resolve(instanceId.toString());
+    Path workingDir = Agent.WORK_DIR.resolve(instanceId.toString());
+    logger.info("Working directory is: {}", workingDir);
+    this.workingDir = workingDir;
   }
 
-  public File installKit(License license) {
-    Path workingInstallPath = workingKitInstallationPath.resolve(distribution.getVersion().toString());
-    Path workingCopyFromLocalInstall = createWorkingCopyFromLocalInstall(license, kitInstallationPath, workingInstallPath);
-    logger.info("Working install is located in {}", workingCopyFromLocalInstall);
-    return workingCopyFromLocalInstall.toFile();
-  }
-
-  private Path createWorkingCopyFromLocalInstall(License license, Path localInstall, Path workingInstallBasePath) {
+  // Returns the location to be used for kit - could be the source kit path itself, or a new location based on if or not
+  // the kit was copied
+  public File installKit(License license, Collection<String> serversHostnames) {
     try {
-      logger.info("Copying {} to {}", localInstall.toAbsolutePath(), workingInstallBasePath);
-      Files.createDirectories(workingInstallBasePath);
-      DirectoryUtils.copyDirectory(localInstall, workingInstallBasePath);
-      if (license != null) {
-        license.writeToFile(workingInstallBasePath.toFile());
-      }
+      Files.createDirectories(workingDir);
 
-      cleanupPermissions(workingInstallBasePath);
-      return workingInstallBasePath;
+      if (areAllLocal(serversHostnames) && parseBoolean(SKIP_KIT_COPY_LOCALHOST.getValue())) {
+        logger.info("Skipped copying kit from {} to {} as all hosts are local", kitInstallationPath.toAbsolutePath(), workingDir);
+        if (license != null) {
+          license.writeToFile(kitInstallationPath.toFile());
+        }
+        return kitInstallationPath.toFile();
+      } else {
+        logger.info("Copying {} to {}", kitInstallationPath.toAbsolutePath(), workingDir);
+        DirectoryUtils.copyDirectory(kitInstallationPath, workingDir);
+        if (license != null) {
+          license.writeToFile(workingDir.toFile());
+        }
+        return workingDir.toFile();
+      }
     } catch (IOException e) {
       throw new RuntimeException("Can not create working install", e);
     }
   }
 
-  public Path getWorkingKitInstallationPath() {
-    return workingKitInstallationPath;
+  public Path getWorkingDir() {
+    return workingDir;
   }
 
-  public boolean verifyKitAvailability(boolean offline) {
+  public boolean isKitAvailable() {
     logger.debug("verifying if the extracted kit is already available locally to setup an install");
     if (!Files.isDirectory(kitInstallationPath)) {
       logger.debug("Local kit installation is not available");

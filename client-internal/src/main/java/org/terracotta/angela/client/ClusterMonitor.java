@@ -17,6 +17,7 @@
 
 package org.terracotta.angela.client;
 
+import org.apache.ignite.Ignite;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.client.filesystem.RemoteFolder;
 import org.terracotta.angela.client.filesystem.TransportableFile;
@@ -25,7 +26,6 @@ import org.terracotta.angela.common.metrics.HardwareMetric;
 import org.terracotta.angela.common.metrics.HardwareMetricsCollector;
 import org.terracotta.angela.common.metrics.MonitoringCommand;
 import org.terracotta.angela.common.topology.InstanceId;
-import org.apache.ignite.Ignite;
 
 import java.io.File;
 import java.io.IOException;
@@ -43,13 +43,15 @@ import java.util.function.BiConsumer;
 public class ClusterMonitor implements AutoCloseable {
 
   private final Ignite ignite;
+  private final int ignitePort;
   private final Path workingPath;
   private final Set<String> hostnames;
   private final Map<HardwareMetric, MonitoringCommand> commands;
   private boolean closed = false;
 
-  ClusterMonitor(Ignite ignite, InstanceId instanceId, Set<String> hostnames, Map<HardwareMetric, MonitoringCommand> commands) {
+  ClusterMonitor(Ignite ignite, int ignitePort, InstanceId instanceId, Set<String> hostnames, Map<HardwareMetric, MonitoringCommand> commands) {
     this.ignite = ignite;
+    this.ignitePort = ignitePort;
     this.workingPath = Agent.WORK_DIR.resolve(instanceId.toString());
     this.hostnames = hostnames;
     this.commands = commands;
@@ -60,7 +62,8 @@ public class ClusterMonitor implements AutoCloseable {
 
     for (String hostname : hostnames) {
       try {
-        IgniteClientHelper.executeRemotely(ignite, hostname, () -> Agent.controller.startHardwareMonitoring(workingPath.toString(), commands));
+        IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, () -> Agent.controller.startHardwareMonitoring(workingPath
+            .toString(), commands));
       } catch (Exception e) {
         exceptions.add(new RuntimeException("Error starting hardware monitoring on " + hostname, e));
       }
@@ -79,7 +82,7 @@ public class ClusterMonitor implements AutoCloseable {
 
     for (String hostname : hostnames) {
       try {
-        IgniteClientHelper.executeRemotely(ignite, hostname, () -> Agent.controller.stopHardwareMonitoring());
+        IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, () -> Agent.controller.stopHardwareMonitoring());
       } catch (Exception e) {
         exceptions.add(e);
       }
@@ -99,7 +102,7 @@ public class ClusterMonitor implements AutoCloseable {
     for (String hostname : hostnames) {
       try {
         Path metricsPath = workingPath.resolve(HardwareMetricsCollector.METRICS_DIRECTORY);
-        new RemoteFolder(ignite, hostname, null, metricsPath.toString()).downloadTo(new File(location, hostname));
+        new RemoteFolder(ignite, hostname, ignitePort, null, metricsPath.toString()).downloadTo(new File(location, hostname));
       } catch (IOException e) {
         exceptions.add(e);
       }
@@ -117,7 +120,7 @@ public class ClusterMonitor implements AutoCloseable {
     for (String hostname : hostnames) {
       try {
         Path metricsPath = workingPath.resolve(HardwareMetricsCollector.METRICS_DIRECTORY);
-        RemoteFolder remoteFolder = new RemoteFolder(ignite, hostname, null, metricsPath.toString());
+        RemoteFolder remoteFolder = new RemoteFolder(ignite, hostname, ignitePort, null, metricsPath.toString());
         remoteFolder.list().forEach(remoteFile -> processor.accept(hostname, remoteFile.toTransportableFile()));
       } catch (Exception e) {
         exceptions.add(e);
@@ -133,7 +136,7 @@ public class ClusterMonitor implements AutoCloseable {
 
   public boolean isMonitoringRunning(HardwareMetric metric) {
     for (String hostname : hostnames) {
-      boolean running = IgniteClientHelper.executeRemotely(ignite, hostname, () -> Agent.controller.isMonitoringRunning(metric));
+      boolean running = IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, () -> Agent.controller.isMonitoringRunning(metric));
       if (!running) {
         return false;
       }

@@ -23,7 +23,7 @@
 
   <groupId>org.terracotta</groupId>
   <artifactId>angela-root</artifactId>
-  <version>3.0.12-SNAPSHOT</version>
+  <version>3.0.20-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>angela</name>
 
@@ -43,12 +43,12 @@
     <maven.compiler.source>1.8</maven.compiler.source>
 
     <!-- Third-party dependencies -->
-    <ignite.version>2.7.6</ignite.version>
+    <ignite.version>2.8.0</ignite.version>
     <json-path.version>3.3.0</json-path.version>
     <mockito-core.version>2.25.0</mockito-core.version>
     <hamcrest.version>1.3</hamcrest.version>
     <junit.version>4.12</junit.version>
-    <slf4j-api.version>1.7.28</slf4j-api.version>
+    <slf4j-api.version>1.7.25</slf4j-api.version>
     <sshj.version>0.27.0</sshj.version>
     <awaitility.version>4.0.1</awaitility.version>
     <commons-io.version>2.6</commons-io.version>
@@ -275,7 +275,31 @@
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>
       </plugin>
-
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-java</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <dependencyConvergence>
+                  <uniqueVersions>true</uniqueVersions>
+                </dependencyConvergence>
+                <requireJavaVersion>
+                  <version>[${java.version},)</version>
+                </requireJavaVersion>
+                <requireMavenVersion>
+                  <version>[${maven.version},)</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
@@ -365,11 +389,6 @@
       <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
       <organizationUrl>https://terracotta.org</organizationUrl>
     </developer>
-    <developer>
-      <name>Ludovic Orban</name>
-      <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
-      <organizationUrl>https://terracotta.org</organizationUrl>
-    </developer>
    <developer>
       <name>Saurabh Agarwal</name>
       <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
@@ -381,37 +400,12 @@
       <organizationUrl>https://terracotta.org</organizationUrl>
     </developer>
     <developer>
-      <name>Albert Gevorgyan</name>
-      <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
-      <organizationUrl>https://terracotta.org</organizationUrl>
-    </developer>
-    <developer>
       <name>Albin Suresh</name>
       <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
       <organizationUrl>https://terracotta.org</organizationUrl>
     </developer>
     <developer>
-      <name>Anthony Dahanne</name>
-      <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
-      <organizationUrl>https://terracotta.org</organizationUrl>
-    </developer>
-    <developer>
-      <name>Ravi Chaturvedi</name>
-      <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
-      <organizationUrl>https://terracotta.org</organizationUrl>
-    </developer>
-    <developer>
       <name>Chris Dennis</name>
-      <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
-      <organizationUrl>https://terracotta.org</organizationUrl>
-    </developer>
-    <developer>
-      <name>Yakov Feldman</name>
-      <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
-      <organizationUrl>https://terracotta.org</organizationUrl>
-    </developer>
-    <developer>
-      <name>Geoff Gibson</name>
       <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
       <organizationUrl>https://terracotta.org</organizationUrl>
     </developer>
@@ -422,11 +416,6 @@
     </developer>
     <developer>
       <name>Venkata Sairam Madduri</name>
-      <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
-      <organizationUrl>https://terracotta.org</organizationUrl>
-    </developer>
-    <developer>
-      <name>Eugene Sebastian</name>
       <organization>Terracotta Inc., a wholly-owned subsidiary of Software AG USA, Inc.</organization>
       <organizationUrl>https://terracotta.org</organizationUrl>
     </developer>

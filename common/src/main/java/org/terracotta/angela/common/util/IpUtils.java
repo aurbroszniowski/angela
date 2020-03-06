@@ -19,8 +19,37 @@ package org.terracotta.angela.common.util;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Collection;
 
 public class IpUtils {
+  public static boolean isLocal(String targetServerName) {
+    InetAddress address;
+    try {
+      address = InetAddress.getByName(targetServerName);
+    } catch (UnknownHostException e) {
+      throw new RuntimeException(e);
+    }
+    return address.isLoopbackAddress() || address.isLinkLocalAddress();
+  }
+
+  public static boolean areAllLocal(Collection<String> targetServerNames) {
+    for (String targetServerName : targetServerNames) {
+      if (!isLocal(targetServerName)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public static boolean isAnyLocal(Collection<String> targetServerNames) {
+    for (String targetServerName : targetServerNames) {
+      if (isLocal(targetServerName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public static String getHostName() {
     try {
       return InetAddress.getLocalHost().getHostName();

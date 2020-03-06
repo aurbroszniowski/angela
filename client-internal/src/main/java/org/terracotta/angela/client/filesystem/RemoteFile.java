@@ -17,9 +17,9 @@
 
 package org.terracotta.angela.client.filesystem;
 
+import org.apache.ignite.Ignite;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.client.util.IgniteClientHelper;
-import org.apache.ignite.Ignite;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -27,13 +27,15 @@ import java.io.IOException;
 
 public class RemoteFile {
   protected final Ignite ignite;
-  protected final String nodeName;
+  protected final String hostname;
+  private final int ignitePort;
   protected final String parentName;
   protected final String name;
 
-  public RemoteFile(Ignite ignite, String nodeName, String parentName, String name) {
+  public RemoteFile(Ignite ignite, String hostname, int ignitePort, String parentName, String name) {
     this.ignite = ignite;
-    this.nodeName = nodeName;
+    this.hostname = hostname;
+    this.ignitePort = ignitePort;
     this.parentName = parentName;
     this.name = name;
   }
@@ -62,7 +64,7 @@ public class RemoteFile {
 
   private byte[] downloadContents() {
     String filename = getAbsoluteName();
-    return IgniteClientHelper.executeRemotely(ignite, nodeName, () -> Agent.controller.downloadFile(filename));
+    return IgniteClientHelper.executeRemotely(ignite, hostname, ignitePort, () -> Agent.controller.downloadFile(filename));
   }
 
   public TransportableFile toTransportableFile() {
@@ -71,6 +73,6 @@ public class RemoteFile {
 
   @Override
   public String toString() {
-    return "[" + nodeName + "]:" + name;
+    return "[" + hostname + "]:" + name;
   }
 }

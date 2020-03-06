@@ -17,6 +17,8 @@
 
 package org.terracotta.angela.agent.client;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
 import org.terracotta.angela.common.ToolExecutionResult;
@@ -25,8 +27,6 @@ import org.terracotta.angela.common.util.ExternalLoggers;
 import org.terracotta.angela.common.util.JavaLocationResolver;
 import org.terracotta.angela.common.util.LogOutputStream;
 import org.terracotta.angela.common.util.OS;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.ProcessResult;
 import org.zeroturnaround.exec.StartedProcess;
@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.terracotta.angela.common.AngelaProperties.DIRECT_JOIN;
 import static org.terracotta.angela.common.AngelaProperties.NODE_NAME;
-import static org.terracotta.angela.common.AngelaProperties.PORT_RANGE;
+import static org.terracotta.angela.common.AngelaProperties.PORT;
 import static org.terracotta.angela.common.AngelaProperties.ROOT_DIR;
 
 /**
@@ -91,7 +91,7 @@ public class RemoteClientManager {
     }
   }
 
-  public int spawnClient(InstanceId instanceId, TerracottaCommandLineEnvironment tcEnv, Collection<String> joinedNodes) {
+  public int spawnClient(InstanceId instanceId, TerracottaCommandLineEnvironment tcEnv, Collection<String> joinedNodes, int ignitePort) {
     try {
       String javaHome = javaLocationResolver.resolveJavaLocation(tcEnv).getHome();
 
@@ -108,13 +108,13 @@ public class RemoteClientManager {
       cmdLine.add("-classpath");
       cmdLine.add(buildClasspath());
 
-      cmdLine.add("-D" + PORT_RANGE.getPropertyName() + "=" + PORT_RANGE.getValue());
+      cmdLine.add("-D" + PORT.getPropertyName() + "=" + ignitePort);
       cmdLine.add("-D" + DIRECT_JOIN.getPropertyName() + "=" + String.join(",", joinedNodes));
-      cmdLine.add("-D" + NODE_NAME.getPropertyName() + "=" + instanceId);
+      cmdLine.add("-D" + NODE_NAME.getPropertyName() + "=" + instanceId + ":" + ignitePort);
       cmdLine.add("-D" + ROOT_DIR.getPropertyName() + "=" + Agent.ROOT_DIR);
       cmdLine.add(Agent.class.getName());
 
-      logger.info("Spawning client {}", cmdLine);
+      logger.info("Spawning client with: {}", cmdLine);
       ProcessExecutor processExecutor = new ProcessExecutor().command(cmdLine)
           .redirectOutput(new LogOutputStream() {
             @Override

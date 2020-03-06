@@ -31,6 +31,7 @@ public class TmsInstall {
 
   private final Distribution distribution;
   private final File installLocation;
+  private final File workingDir;
   private final TerracottaCommandLineEnvironment tcEnv;
   private TerracottaManagementServerInstance terracottaManagementServerInstance;
 
@@ -38,15 +39,16 @@ public class TmsInstall {
     return installLocation;
   }
 
-  public TmsInstall(Distribution distribution, File location, TerracottaCommandLineEnvironment tcEnv) {
+  public TmsInstall(Distribution distribution, File installLocation, File workingDir, TerracottaCommandLineEnvironment tcEnv) {
     this.distribution = distribution;
-    this.installLocation = location;
+    this.installLocation = installLocation;
+    this.workingDir = workingDir;
     this.tcEnv = tcEnv;
     addTerracottaManagementServer();
   }
 
   public void addTerracottaManagementServer() {
-    terracottaManagementServerInstance = new TerracottaManagementServerInstance(distribution.createDistributionController(), installLocation, tcEnv);
+    terracottaManagementServerInstance = new TerracottaManagementServerInstance(distribution.createDistributionController(), installLocation, workingDir, tcEnv);
   }
 
   public TerracottaManagementServerInstance getTerracottaManagementServerInstance() {

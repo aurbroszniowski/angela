@@ -17,6 +17,9 @@
 
 package org.terracotta.angela.client;
 
+import org.apache.ignite.Ignite;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.agent.kit.LocalKitManager;
 import org.terracotta.angela.client.config.ClientArrayConfigurationContext;
@@ -25,9 +28,6 @@ import org.terracotta.angela.client.util.IgniteClientHelper;
 import org.terracotta.angela.common.TerracottaCommandLineEnvironment;
 import org.terracotta.angela.common.clientconfig.ClientId;
 import org.terracotta.angela.common.topology.InstanceId;
-import org.apache.ignite.Ignite;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,10 +56,12 @@ public class ClientArray implements AutoCloseable {
   private final Supplier<InstanceId> instanceIdSupplier;
   private final LocalKitManager localKitManager;
   private final Map<ClientId, Client> clients = new HashMap<>();
+  private final int ignitePort;
   private final ClientArrayConfigurationContext clientArrayConfigurationContext;
   private boolean closed = false;
 
-  ClientArray(Ignite ignite, Supplier<InstanceId> instanceIdSupplier, ClientArrayConfigurationContext clientArrayConfigurationContext) {
+  ClientArray(Ignite ignite, int ignitePort, Supplier<InstanceId> instanceIdSupplier, ClientArrayConfigurationContext clientArrayConfigurationContext) {
+    this.ignitePort = ignitePort;
     this.clientArrayConfigurationContext = clientArrayConfigurationContext;
     this.instanceIdSupplier = instanceIdSupplier;
     this.ignite = ignite;
@@ -69,9 +71,7 @@ public class ClientArray implements AutoCloseable {
   }
 
   private void installAll() {
-    for (ClientId clientId : clientArrayConfigurationContext.getClientArrayTopology().getClientIds()) {
-      install(clientId);
-    }
+    clientArrayConfigurationContext.getClientArrayTopology().getClientIds().forEach(this::install);
   }
 
   private void install(ClientId clientId) {
@@ -86,8 +86,8 @@ public class ClientArray implements AutoCloseable {
 // TODO : refactor Client to extract the uploading step and the execution step
 //     uploadClientJars(ignite, terracottaClient.getClientHostname(), instanceId, );
 
-      Client client = new Client(ignite, instanceIdSupplier.get(), clientId, clientArrayConfigurationContext
-          .getTerracottaCommandLineEnvironment(), localKitManager);
+      Client client = new Client(ignite, ignitePort, instanceIdSupplier.get(), clientId,
+          clientArrayConfigurationContext.getTerracottaCommandLineEnvironment(), localKitManager);
       clients.put(clientId, client);
     } catch (Exception e) {
       throw new RuntimeException("Cannot upload client jars to " + clientId, e);
@@ -126,7 +126,7 @@ public class ClientArray implements AutoCloseable {
 
   public Jcmd jcmd(Client client) {
     TerracottaCommandLineEnvironment tcEnv = clientArrayConfigurationContext.getTerracottaCommandLineEnvironment();
-    return new Jcmd(ignite, instanceIdSupplier.get(), client, tcEnv);
+    return new Jcmd(ignite, instanceIdSupplier.get(), client, ignitePort, tcEnv);
   }
 
   public void stopAll() throws IOException {
@@ -178,8 +178,9 @@ public class ClientArray implements AutoCloseable {
   }
 
   public RemoteFolder browse(Client client, String remoteLocation) {
-    String clientWorkDir = IgniteClientHelper.executeRemotely(ignite, client.getHostname(), () -> Agent.controller.instanceWorkDir(client.getInstanceId()));
-    return new RemoteFolder(ignite, client.getHostname(), clientWorkDir, remoteLocation);
+    String clientWorkDir = IgniteClientHelper.executeRemotely(ignite, client.getHostname(), ignitePort,
+        () -> Agent.controller.instanceWorkDir(client.getInstanceId()));
+    return new RemoteFolder(ignite, client.getHostname(), ignitePort, clientWorkDir, remoteLocation);
   }
 
   public void download(String remoteLocation, File localRootPath) {

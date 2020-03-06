@@ -213,9 +213,9 @@ public class TerracottaServer {
   @Override
   public String toString() {
     return "TerracottaServer{" +
-        "serverSymbolicName=" + serverSymbolicName +
-        ", hostname='" + hostName + '\'' +
-        '}';
+           "serverSymbolicName=" + serverSymbolicName +
+           ", hostname='" + hostName + '\'' +
+           '}';
   }
 
   @Override
@@ -224,21 +224,21 @@ public class TerracottaServer {
     if (o == null || getClass() != o.getClass()) return false;
     TerracottaServer that = (TerracottaServer) o;
     return tsaPort == that.tsaPort &&
-        tsaGroupPort == that.tsaGroupPort &&
-        managementPort == that.managementPort &&
-        jmxPort == that.jmxPort &&
-        Objects.equals(serverSymbolicName, that.serverSymbolicName) &&
-        Objects.equals(hostName, that.hostName) &&
-        Objects.equals(bindAddress, that.bindAddress) &&
-        Objects.equals(groupBindAddress, that.groupBindAddress) &&
-        Objects.equals(configRepo, that.configRepo) &&
-        Objects.equals(configFile, that.configFile) &&
-        Objects.equals(logs, that.logs) &&
-        Objects.equals(metaData, that.metaData) &&
-        Objects.equals(offheap, that.offheap) &&
-        Objects.equals(dataDir, that.dataDir) &&
-        Objects.equals(failoverPriority, that.failoverPriority) &&
-        Objects.equals(clientLeaseDuration, that.clientLeaseDuration);
+           tsaGroupPort == that.tsaGroupPort &&
+           managementPort == that.managementPort &&
+           jmxPort == that.jmxPort &&
+           Objects.equals(serverSymbolicName, that.serverSymbolicName) &&
+           Objects.equals(hostName, that.hostName) &&
+           Objects.equals(bindAddress, that.bindAddress) &&
+           Objects.equals(groupBindAddress, that.groupBindAddress) &&
+           Objects.equals(configRepo, that.configRepo) &&
+           Objects.equals(configFile, that.configFile) &&
+           Objects.equals(logs, that.logs) &&
+           Objects.equals(metaData, that.metaData) &&
+           Objects.equals(offheap, that.offheap) &&
+           Objects.equals(dataDir, that.dataDir) &&
+           Objects.equals(failoverPriority, that.failoverPriority) &&
+           Objects.equals(clientLeaseDuration, that.clientLeaseDuration);
   }
 
   @Override
