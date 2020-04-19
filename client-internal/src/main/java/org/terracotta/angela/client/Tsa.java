@@ -66,6 +66,7 @@ import static org.terracotta.angela.common.AngelaProperties.getEitherOf;
 import static org.terracotta.angela.common.TerracottaServerState.STARTED_AS_ACTIVE;
 import static org.terracotta.angela.common.TerracottaServerState.STARTED_AS_PASSIVE;
 import static org.terracotta.angela.common.TerracottaServerState.STARTED_IN_DIAGNOSTIC_MODE;
+import static org.terracotta.angela.common.TerracottaServerState.START_SUSPENDED;
 import static org.terracotta.angela.common.TerracottaServerState.STOPPED;
 import static org.terracotta.angela.common.util.RetryUtils.waitFor;
 
@@ -359,16 +360,6 @@ public class Tsa implements AutoCloseable {
         TerracottaCommandLineEnvironment cliEnv = tsaConfigurationContext.getTerracottaCommandLineEnvironment(TsaConfigurationContext.TerracottaCommandLineEnvironmentKeys.CONFIG_TOOL);
         Agent.controller.configure(instanceId, terracottaServer, topology, null, tsaConfigurationContext.getClusterName(), null, cliEnv, false);
       });
-
-      final int maxWaitTimeMillis = 30000;
-      if (!waitFor(() -> getActives().size() == stripes.size(), maxWaitTimeMillis)) {
-        throw new RuntimeException("Tried for " + maxWaitTimeMillis + "ms, but all stripes did not get actives");
-      }
-
-      if (!waitFor(() -> getPassives().size() == topology.getServers()
-                                                     .size() - getActives().size(), maxWaitTimeMillis)) {
-        throw new RuntimeException("Tried for " + maxWaitTimeMillis + "ms, but all stripes did not get the expected number of passives");
-      }
       return this;
     } else {
       throw new IllegalStateException();
@@ -672,9 +663,6 @@ public class Tsa implements AutoCloseable {
       throw new RuntimeException("ConfigTool::executeCommand with command parameters failed with: " + result);
     }
 
-    for (TerracottaServer detachServer : toDetachStripe) {
-      stop(detachServer);
-    }
     tsaConfigurationContext.getTopology().removeStripe(stripeIndex);
     return result;
   }
@@ -753,7 +741,6 @@ public class Tsa implements AutoCloseable {
       throw new RuntimeException("ConfigTool::executeCommand with command parameters failed with: " + result);
     }
 
-    stop(toDetach);
     tsaConfigurationContext.getTopology().removeServer(stripeIndex, serverIndex);
     return result;
   }

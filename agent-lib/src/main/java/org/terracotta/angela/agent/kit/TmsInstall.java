@@ -35,8 +35,8 @@ public class TmsInstall {
   private final TerracottaCommandLineEnvironment tcEnv;
   private TerracottaManagementServerInstance terracottaManagementServerInstance;
 
-  public File getInstallLocation() {
-    return installLocation;
+  public File getKitLocation() {
+    return kitLocation;
   }
 
   public TmsInstall(Distribution distribution, File installLocation, File workingDir, TerracottaCommandLineEnvironment tcEnv) {

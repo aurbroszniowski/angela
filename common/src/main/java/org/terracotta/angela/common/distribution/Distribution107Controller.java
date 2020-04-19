@@ -88,6 +88,9 @@ public class Distribution107Controller extends DistributionController {
             compile("^.*\\QL2 Exiting\\E.*$"),
             mr -> stateRef.set(TerracottaServerState.STOPPED))
         .andTriggerOn(
+            compile("^.*\\QMOVE_TO_ACTIVE not allowed because not enough servers are connected\\E.*$"),
+            mr -> stateRef.set(TerracottaServerState.START_SUSPENDED))
+        .andTriggerOn(
             compile("^.*PID is (\\d+).*$"),
             mr -> {
               javaPid.set(parseInt(mr.group(1)));
@@ -324,6 +327,46 @@ public class Distribution107Controller extends DistributionController {
     if (server.getClientLeaseDuration() != null) {
       options.add("-i");
       options.add(server.getClientLeaseDuration());
+    }
+
+    if (server.getClientReconnectWindow() != null) {
+      options.add("-R");
+      options.add(server.getClientReconnectWindow());
+    }
+
+    if (server.getBackupDir() != null) {
+      options.add("-b");
+      options.add(server.getBackupDir());
+    }
+
+    if (server.getAuditLogDir() != null) {
+      options.add("-u");
+      options.add(server.getAuditLogDir());
+    }
+
+    if (server.getAuthc() != null) {
+      options.add("-z");
+      options.add(server.getAuthc());
+    }
+
+    if (server.getSecurityDir() != null) {
+      options.add("-x");
+      options.add(server.getSecurityDir());
+    }
+
+    if (server.isSslTls()) {
+      options.add("-t");
+      options.add("true");
+    }
+
+    if (server.isWhitelist()) {
+      options.add("-w");
+      options.add("true");
+    }
+
+    if (server.getProperties() != null) {
+      options.add("-T");
+      options.add(server.getProperties());
     }
 
     LOGGER.info("Server startup options: {}", options);

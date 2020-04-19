@@ -85,9 +85,8 @@ public class Distribution {
 
   public DistributionController createDistributionController() {
     if ((version.getMajor() == 10 && version.getMinor() >= 7) //tc-ee 10.7
-        || (version.getMajor() == 5 && version.getMinor() >= 7) //tc-oss 5.7
-        || (version.getMajor() == 3 && version.getMinor() == 8 && version.getRevision() > 1) //ehcache 3.8.2 onwards
-        || (version.getMajor() == 3 && version.getMinor() >= 9) //ehcache 3.9-SNAPSHOT
+        || (version.getMajor() == 5 && version.getMinor() >= 7) //tc-platform 5.7 and above
+        || (version.getMajor() == 3 && version.getMinor() >= 9) //ehcache 3.9 and above
     ) {
       return new Distribution107Controller(this);
     }

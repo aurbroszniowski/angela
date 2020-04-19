@@ -18,6 +18,7 @@
 package org.terracotta.angela.client;
 
 import org.apache.ignite.Ignite;
+import org.apache.ignite.lang.IgniteCallable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.Agent;
@@ -163,17 +164,15 @@ public class Tms implements AutoCloseable {
     localKitManager.setupLocalInstall(license, kitInstallationPath, offline);
 
     logger.info("Attempting to remotely install if distribution already exists on {}", tmsHostname);
-    boolean isRemoteInstallationSuccessful = kitInstallationPath == null
-                                             && IgniteClientHelper.executeRemotely(ignite, tmsHostname, ignitePort,
-        () -> Agent.controller.installTms(instanceId, tmsHostname, distribution, license,
-            tmsServerSecurityConfig, localKitManager.getKitInstallationName(), tcEnv, singleton(tmsConfigurationContext.getHostname())));
+    IgniteCallable<Boolean> callable = () -> Agent.controller.installTms(instanceId, tmsHostname, distribution, license,
+        tmsServerSecurityConfig, localKitManager.getKitInstallationName(), tcEnv, singleton(tmsConfigurationContext.getHostname()));
+    boolean isRemoteInstallationSuccessful = kitInstallationPath == null && IgniteClientHelper.executeRemotely(ignite, tmsHostname, callable);
 
     if (!isRemoteInstallationSuccessful) {
       try {
         IgniteClientHelper.uploadKit(ignite, tmsHostname, ignitePort, instanceId, distribution,
             localKitManager.getKitInstallationName(), localKitManager.getKitInstallationPath().toFile());
-        IgniteClientHelper.executeRemotely(ignite, tmsHostname, ignitePort, () -> Agent.controller.installTms(instanceId, tmsHostname, distribution, license,
-            tmsServerSecurityConfig, localKitManager.getKitInstallationName(), tcEnv, singleton(tmsConfigurationContext.getHostname())));
+        IgniteClientHelper.executeRemotely(ignite, tmsHostname, callable);
       } catch (Exception e) {
         throw new RuntimeException("Cannot upload kit to " + tmsHostname, e);
       }

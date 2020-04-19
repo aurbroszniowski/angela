@@ -47,6 +47,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.terracotta.angela.common.util.IpUtils.isLocal;
 
+import static org.terracotta.angela.common.AngelaProperties.IGNITE_LOGGING;
+import static org.terracotta.angela.common.util.IpUtils.areAllLocal;
+import static org.terracotta.angela.common.util.IpUtils.isAnyLocal;
 import static org.terracotta.angela.common.util.IpUtils.isLocal;
 
 public class ClusterFactory implements AutoCloseable {

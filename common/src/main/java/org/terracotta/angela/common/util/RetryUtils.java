@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static java.lang.Math.min;
@@ -33,28 +34,36 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 public class RetryUtils {
   private static final Logger logger = LoggerFactory.getLogger(RetryUtils.class);
 
+  public static boolean waitFor(Callable<Boolean> condition, long maxWaitTimeMillis) {
+    return waitFor(condition, maxWaitTimeMillis, MILLISECONDS);
+  }
+
   /**
-   * Waits for {@code maxRetryCount} time for the {@code condition} to be true.
+   * A general-purpose utility for source code, intended as a replacement for Awaitility.
+   * Repeatedly polls the {@code condition} with a backoff between multiple poll events, until the specified duration
+   * is reached.
    *
-   * @param condition         the condition to evaluate
-   * @param maxWaitTimeMillis the maximum time in milliseconds to wait before giving up
+   * @param condition       the condition to evaluate
+   * @param maxWaitDuration the maximum duration to wait before giving up
+   * @param timeUnit        the unit of duration
    * @return {@code true} if the condition was evaluated to true within the given constraints, false otherwise
    */
-  public static boolean waitFor(Callable<Boolean> condition, int maxWaitTimeMillis) {
-    int currRetryTime = min(maxWaitTimeMillis, 100);
-    int timeRemaining = maxWaitTimeMillis;
+  public static boolean waitFor(Callable<Boolean> condition, long maxWaitDuration, TimeUnit timeUnit) {
+    TimeBudget timeBudget = new TimeBudget(maxWaitDuration, timeUnit);
+    long currRetryTime = min(maxWaitDuration, 100);
     ExecutorService executorService = Executors.newSingleThreadExecutor(Thread::new);
     boolean success = false;
 
-    while (currRetryTime <= maxWaitTimeMillis) {
-      long timeout = min(currRetryTime, timeRemaining); //Keep track of how much time remains
+    while (timeBudget.remaining() > 0 && !Thread.currentThread().isInterrupted()) {
+      long timeout = min(currRetryTime, timeBudget.remaining()); //Keep track of how much time remains
       Future<Boolean> future = executorService.submit(condition);
       if (getResult(timeout, future)) {
-        logger.info("Condition became true after {}ms ", currRetryTime);
+        logger.info("Condition became true after {} {}", maxWaitDuration - timeBudget.remaining(), timeUnit.name().toLowerCase());
         success = true;
         break;
       } else {
-        timeRemaining -= currRetryTime;
+        logger.debug("Callable failed. Retrying..");
+        sleep(currRetryTime);
         currRetryTime *= 2; //Double retry timeout on each failure
       }
     }
@@ -63,11 +72,17 @@ public class RetryUtils {
     return success;
   }
 
-  private static Boolean getResult(long timeout, Future<Boolean> future) {
-    Boolean result;
+  private static void sleep(long currRetryTime) {
     try {
-      result = future.get(timeout, MILLISECONDS);
-      return result;
+      Thread.sleep(currRetryTime);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private static Boolean getResult(long timeout, Future<Boolean> future) {
+    try {
+      return future.get(timeout, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       return false;
     }

@@ -22,6 +22,8 @@ import org.terracotta.angela.common.util.HostPort;
 import java.util.Objects;
 import java.util.UUID;
 
+import static java.util.Objects.requireNonNull;
+
 /**
  * Logical definition of a Terracotta server instance
  *
@@ -48,10 +50,18 @@ public class TerracottaServer {
   private volatile String offheap;
   private volatile String failoverPriority;
   private volatile String clientLeaseDuration;
+  private String properties;
+  private String backupDir;
+  private String clientReconnectWindow;
+  private String auditLogDir;
+  private String securityDir;
+  private String authc;
+  private boolean sslTls;
+  private boolean whitelist;
 
   private TerracottaServer(String serverSymbolicName, String hostName) {
     this.serverSymbolicName = new ServerSymbolicName(serverSymbolicName);
-    this.hostName = hostName;
+    this.hostName = requireNonNull(hostName);
     this.id = UUID.randomUUID();
   }
 
@@ -119,6 +129,11 @@ public class TerracottaServer {
     return this;
   }
 
+  public TerracottaServer backupDir(String backupDir) {
+    this.backupDir = backupDir;
+    return this;
+  }
+
   public TerracottaServer offheap(String offheap) {
     this.offheap = offheap;
     return this;
@@ -131,6 +146,41 @@ public class TerracottaServer {
 
   public TerracottaServer clientLeaseDuration(String clientLeaseDuration) {
     this.clientLeaseDuration = clientLeaseDuration;
+    return this;
+  }
+
+  public TerracottaServer clientReconnectWindow(String clientReconnectWindow) {
+    this.clientReconnectWindow = clientReconnectWindow;
+    return this;
+  }
+
+  public TerracottaServer tcProperties(String properties) {
+    this.properties = properties;
+    return this;
+  }
+
+  public TerracottaServer auditLogDir(String auditLogDir) {
+    this.auditLogDir = auditLogDir;
+    return this;
+  }
+
+  public TerracottaServer securityDir(String securityDir) {
+    this.securityDir = securityDir;
+    return this;
+  }
+
+  public TerracottaServer authc(String authc) {
+    this.authc = authc;
+    return this;
+  }
+
+  public TerracottaServer sslTls(boolean sslTls) {
+    this.sslTls = sslTls;
+    return this;
+  }
+
+  public TerracottaServer whitelist(boolean whitelist) {
+    this.whitelist = whitelist;
     return this;
   }
 
@@ -210,6 +260,42 @@ public class TerracottaServer {
     return clientLeaseDuration;
   }
 
+  public String getHostName() {
+    return hostName;
+  }
+
+  public String getProperties() {
+    return properties;
+  }
+
+  public String getBackupDir() {
+    return backupDir;
+  }
+
+  public String getClientReconnectWindow() {
+    return clientReconnectWindow;
+  }
+
+  public String getAuditLogDir() {
+    return auditLogDir;
+  }
+
+  public String getSecurityDir() {
+    return securityDir;
+  }
+
+  public String getAuthc() {
+    return authc;
+  }
+
+  public boolean isSslTls() {
+    return sslTls;
+  }
+
+  public boolean isWhitelist() {
+    return whitelist;
+  }
+
   @Override
   public String toString() {
     return "TerracottaServer{" +
@@ -224,26 +310,37 @@ public class TerracottaServer {
     if (o == null || getClass() != o.getClass()) return false;
     TerracottaServer that = (TerracottaServer) o;
     return tsaPort == that.tsaPort &&
-           tsaGroupPort == that.tsaGroupPort &&
-           managementPort == that.managementPort &&
-           jmxPort == that.jmxPort &&
-           Objects.equals(serverSymbolicName, that.serverSymbolicName) &&
-           Objects.equals(hostName, that.hostName) &&
-           Objects.equals(bindAddress, that.bindAddress) &&
-           Objects.equals(groupBindAddress, that.groupBindAddress) &&
-           Objects.equals(configRepo, that.configRepo) &&
-           Objects.equals(configFile, that.configFile) &&
-           Objects.equals(logs, that.logs) &&
-           Objects.equals(metaData, that.metaData) &&
-           Objects.equals(offheap, that.offheap) &&
-           Objects.equals(dataDir, that.dataDir) &&
-           Objects.equals(failoverPriority, that.failoverPriority) &&
-           Objects.equals(clientLeaseDuration, that.clientLeaseDuration);
+        tsaGroupPort == that.tsaGroupPort &&
+        managementPort == that.managementPort &&
+        jmxPort == that.jmxPort &&
+        proxyPort == that.proxyPort &&
+        sslTls == that.sslTls &&
+        whitelist == that.whitelist &&
+        serverSymbolicName.equals(that.serverSymbolicName) &&
+        hostName.equals(that.hostName) &&
+        Objects.equals(id, that.id) &&
+        Objects.equals(bindAddress, that.bindAddress) &&
+        Objects.equals(groupBindAddress, that.groupBindAddress) &&
+        Objects.equals(configRepo, that.configRepo) &&
+        Objects.equals(configFile, that.configFile) &&
+        Objects.equals(logs, that.logs) &&
+        Objects.equals(metaData, that.metaData) &&
+        Objects.equals(dataDir, that.dataDir) &&
+        Objects.equals(offheap, that.offheap) &&
+        Objects.equals(failoverPriority, that.failoverPriority) &&
+        Objects.equals(clientLeaseDuration, that.clientLeaseDuration) &&
+        Objects.equals(properties, that.properties) &&
+        Objects.equals(backupDir, that.backupDir) &&
+        Objects.equals(clientReconnectWindow, that.clientReconnectWindow) &&
+        Objects.equals(auditLogDir, that.auditLogDir) &&
+        Objects.equals(securityDir, that.securityDir) &&
+        Objects.equals(authc, that.authc);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(serverSymbolicName, hostName, tsaPort, tsaGroupPort, managementPort, jmxPort, configRepo,
-        bindAddress, groupBindAddress, configFile, logs, metaData, offheap, dataDir, failoverPriority, clientLeaseDuration);
+    return Objects.hash(serverSymbolicName, hostName, id, tsaPort, tsaGroupPort, managementPort, jmxPort, proxyPort,
+        bindAddress, groupBindAddress, configRepo, configFile, logs, metaData, dataDir, offheap, failoverPriority,
+        clientLeaseDuration, properties, backupDir, clientReconnectWindow, auditLogDir, securityDir, authc, sslTls, whitelist);
   }
 }
