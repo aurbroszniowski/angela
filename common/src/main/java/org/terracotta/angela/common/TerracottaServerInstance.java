@@ -68,7 +68,7 @@ public class TerracottaServerInstance implements Closeable {
     this.distributionController = distribution.createDistributionController();
     this.workingDir = workingDir;
     this.distribution = distribution;
-    this.licenseFileLocation = license == null ? null : new File(kitDir, license.getFilename());
+    this.licenseFileLocation = license == null ? null : new File(installLocation, license.getFilename());
     this.netDisruptionEnabled = topology.isNetDisruptionEnabled();
     this.topology = topology;
     constructLinks();
@@ -171,12 +171,8 @@ public class TerracottaServerInstance implements Closeable {
     }
   }
 
-  public File getKitDir() {
-    return kitDir;
-  }
-
-  public File getWorkingDir() {
-    return workingDir;
+  public File getInstallLocation() {
+    return installLocation;
   }
 
   public File getWorkingDir() {

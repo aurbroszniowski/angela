@@ -209,7 +209,7 @@ public class AgentController {
 
   public String getTmsInstallationPath(InstanceId instanceId) {
     TmsInstall serverInstance = tmsInstalls.get(instanceId);
-    return serverInstance.getKitLocation().getPath();
+    return serverInstance.getInstallLocation().getPath();
   }
 
   public TerracottaManagementServerState getTmsState(InstanceId instanceId) {
@@ -263,10 +263,10 @@ public class AgentController {
           RemoteKitManager kitManager = new RemoteKitManager(instanceId, distribution, kitInstallationName);
           // TODO : get log files
 
-          kitManager.deleteInstall(tmsInstall.getKitLocation());
+          kitManager.deleteInstall(tmsInstall.getInstallLocation());
           kitsInstalls.remove(instanceId);
         } catch (IOException ioe) {
-          throw new RuntimeException("Unable to uninstall kit at " + tmsInstall.getKitLocation()
+          throw new RuntimeException("Unable to uninstall kit at " + tmsInstall.getInstallLocation()
               .getAbsolutePath(), ioe);
         }
       } else {
