@@ -409,7 +409,7 @@ public class Distribution107Controller extends DistributionController {
 
     if (server.getSecurityDir() != null) {
       options.add("-x");
-      options.add(server.getSecurityDir());
+      options.add(server.getSecurityDir().toString());
     }
 
     if (server.isSslTls()) {
@@ -476,7 +476,7 @@ public class Distribution107Controller extends DistributionController {
     }
     throw new IllegalStateException("Can not define Voter Start Command for distribution: " + distribution);
   }
-  
+
   @Override
   public String terracottaInstallationRoot() {
     return "TerracottaDB";

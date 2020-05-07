@@ -19,6 +19,7 @@ package org.terracotta.angela.common.tcconfig;
 
 import org.terracotta.angela.common.util.HostPort;
 
+import java.nio.file.Path;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -54,7 +55,7 @@ public class TerracottaServer {
   private String backupDir;
   private String clientReconnectWindow;
   private String auditLogDir;
-  private String securityDir;
+  private Path securityDir;
   private String authc;
   private boolean sslTls;
   private boolean whitelist;
@@ -164,7 +165,7 @@ public class TerracottaServer {
     return this;
   }
 
-  public TerracottaServer securityDir(String securityDir) {
+  public TerracottaServer securityDir(Path securityDir) {
     this.securityDir = securityDir;
     return this;
   }
@@ -280,7 +281,7 @@ public class TerracottaServer {
     return auditLogDir;
   }
 
-  public String getSecurityDir() {
+  public Path getSecurityDir() {
     return securityDir;
   }
 
