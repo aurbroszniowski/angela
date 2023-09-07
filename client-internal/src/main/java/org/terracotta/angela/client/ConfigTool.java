@@ -73,6 +73,7 @@ public class ConfigTool implements AutoCloseable {
 
   public ToolExecutionResult executeCommand(Map<String, String> env, String... arguments) {
     logger.debug("Executing config-tool: {} on: {}", instanceId, executor.getTarget());
+    logger.debug("Config tool env [{}] - arguments [{}] ", env, arguments);
     return executor.execute(() -> AgentController.getInstance().configTool(instanceId, env, arguments));
   }
 

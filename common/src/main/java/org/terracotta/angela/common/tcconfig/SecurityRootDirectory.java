@@ -52,6 +52,7 @@ public class SecurityRootDirectory implements Serializable {
   private final Map<String, byte[]> trustedAuthorityMap;
   private final Map<String, byte[]> accessControlMap;
   private final Map<String, byte[]> whiteListDeprecatedMap;
+  private final Path securityRootDirectory;
   private byte[] whiteListFileContent;
 
   private SecurityRootDirectory(Path securityRootDirectory) {
@@ -98,6 +99,8 @@ public class SecurityRootDirectory implements Serializable {
     } else {
       whiteListFileContent = null;
     }
+
+    this.securityRootDirectory = securityRootDirectory;
   }
 
   public static SecurityRootDirectory securityRootDirectory(URL securityRootDirectoryUrl) {
@@ -140,6 +143,10 @@ public class SecurityRootDirectory implements Serializable {
     } catch (IOException e) {
       throw new RuntimeException("Unable to read directory " + directory, e);
     }
+  }
+
+  public Path getSecurityRootDirectory() {
+    return securityRootDirectory;
   }
 
   public void createSecurityRootDirectory(Path newSecurityRootDirectory) {
