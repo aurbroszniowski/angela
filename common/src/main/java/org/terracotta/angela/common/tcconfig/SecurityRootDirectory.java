@@ -52,7 +52,7 @@ public class SecurityRootDirectory implements Serializable {
   private final Map<String, byte[]> trustedAuthorityMap;
   private final Map<String, byte[]> accessControlMap;
   private final Map<String, byte[]> whiteListDeprecatedMap;
-  private final Path securityRootDirectory;
+  private final String securityRootDirectory;
   private byte[] whiteListFileContent;
 
   private SecurityRootDirectory(Path securityRootDirectory) {
@@ -100,7 +100,7 @@ public class SecurityRootDirectory implements Serializable {
       whiteListFileContent = null;
     }
 
-    this.securityRootDirectory = securityRootDirectory;
+    this.securityRootDirectory = securityRootDirectory.toString();
   }
 
   public static SecurityRootDirectory securityRootDirectory(URL securityRootDirectoryUrl) {
@@ -146,7 +146,7 @@ public class SecurityRootDirectory implements Serializable {
   }
 
   public Path getSecurityRootDirectory() {
-    return securityRootDirectory;
+    return Paths.get(securityRootDirectory);
   }
 
   public void createSecurityRootDirectory(Path newSecurityRootDirectory) {
