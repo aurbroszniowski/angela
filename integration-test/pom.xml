@@ -200,6 +200,8 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
               -Dangela.agent.debug=false
               -Djdk.net.hosts.file=${project.build.directory}/fake-hosts.txt
               -DIGNITE_UPDATE_NOTIFIER=false
+              -XX:ErrorFile=${project.build.directory}/hs_err_pid_%p.log
+              -XX:OnError="cat ${project.build.directory}/hs_err_pid_%p.log"
               --add-opens=java.base/jdk.internal.access=ALL-UNNAMED
               --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
               --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
@@ -286,6 +288,8 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
               -Dangela.agent.debug=false
               -Djdk.net.hosts.file=${project.build.directory}/fake-hosts.txt
               -DIGNITE_UPDATE_NOTIFIER=false
+              -XX:ErrorFile=${project.build.directory}/hs_err_pid_%p.log
+              -XX:OnError="cat ${project.build.directory}/hs_err_pid_%p.log"
               --add-opens=java.base/jdk.internal.access=ALL-UNNAMED
               --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
               --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
