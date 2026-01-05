@@ -180,7 +180,7 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
             --add-opens=java.base/java.time=ALL-UNNAMED
             --add-opens=java.base/java.text=ALL-UNNAMED
             --add-opens=java.management/sun.management=ALL-UNNAMED
-            --add-opens java.desktop/java.awt.font=ALL-UNNAMED
+            --add-opens=java.desktop/java.awt.font=ALL-UNNAMED
           </argLine>
           <trimStackTrace>false</trimStackTrace>
           <reuseForks>false</reuseForks>
@@ -196,14 +196,14 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
             <angela.ssh.strictHostKeyChecking>false</angela.ssh.strictHostKeyChecking>
             <!-- Required on Azure since there is no SSH setup. -->
             <!-- This private key is just randomly generated password-less. -->
+<!--            -XX:ErrorFile=${project.build.directory}/hs_err_pid_%p.log-->
+<!--            -XX:OnError=sh\ -c\ 'cat\ ${project.build.directory}/hs_err_pid_%p.log'-->
             <angela.ssh.userName.keyPath>src/test/resources/ssh/id_rsa</angela.ssh.userName.keyPath>
             <angela.java.opts>
               -Xint
               -Dangela.agent.debug=false
               -Djdk.net.hosts.file=${project.build.directory}/fake-hosts.txt
               -DIGNITE_UPDATE_NOTIFIER=false
-              -XX:ErrorFile=${project.build.directory}/hs_err_pid_%p.log
-              -XX:OnError="cat ${project.build.directory}/hs_err_pid_%p.log"
               --add-opens=java.base/jdk.internal.access=ALL-UNNAMED
               --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
               --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
@@ -227,7 +227,7 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
               --add-opens=java.base/java.time=ALL-UNNAMED
               --add-opens=java.base/java.text=ALL-UNNAMED
               --add-opens=java.management/sun.management=ALL-UNNAMED
-              --add-opens java.desktop/java.awt.font=ALL-UNNAMED
+              --add-opens=java.desktop/java.awt.font=ALL-UNNAMED
             </angela.java.opts>
             <jdk.security.allowNonCaAnchor>true</jdk.security.allowNonCaAnchor>
             <!-- tells the JDK to use this file instead of /etc/hosts -->
@@ -270,7 +270,7 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
             --add-opens=java.base/java.time=ALL-UNNAMED
             --add-opens=java.base/java.text=ALL-UNNAMED
             --add-opens=java.management/sun.management=ALL-UNNAMED
-            --add-opens java.desktop/java.awt.font=ALL-UNNAMED
+            --add-opens=java.desktop/java.awt.font=ALL-UNNAMED
           </argLine>
           <trimStackTrace>false</trimStackTrace>
           <reuseForks>false</reuseForks>
@@ -286,14 +286,14 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
             <angela.ssh.strictHostKeyChecking>false</angela.ssh.strictHostKeyChecking>
             <!-- Required on Azure since there is no SSH setup. -->
             <!-- This private key is just randomly generated password-less. -->
+<!--            -XX:ErrorFile=${project.build.directory}/hs_err_pid_%p.log-->
+<!--            -XX:OnError=sh\ -c\ 'cat\ ${project.build.directory}/hs_err_pid_%p.log'-->
             <angela.ssh.userName.keyPath>src/test/resources/ssh/id_rsa</angela.ssh.userName.keyPath>
             <angela.java.opts>
               -Xint
               -Dangela.agent.debug=false
               -Djdk.net.hosts.file=${project.build.directory}/fake-hosts.txt
               -DIGNITE_UPDATE_NOTIFIER=false
-              -XX:ErrorFile=${project.build.directory}/hs_err_pid_%p.log
-              -XX:OnError="cat ${project.build.directory}/hs_err_pid_%p.log"
               --add-opens=java.base/jdk.internal.access=ALL-UNNAMED
               --add-opens=java.base/jdk.internal.misc=ALL-UNNAMED
               --add-opens=java.base/sun.nio.ch=ALL-UNNAMED
@@ -317,7 +317,7 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
               --add-opens=java.base/java.time=ALL-UNNAMED
               --add-opens=java.base/java.text=ALL-UNNAMED
               --add-opens=java.management/sun.management=ALL-UNNAMED
-              --add-opens java.desktop/java.awt.font=ALL-UNNAMED
+              --add-opens=java.desktop/java.awt.font=ALL-UNNAMED
             </angela.java.opts>
             <jdk.security.allowNonCaAnchor>true</jdk.security.allowNonCaAnchor>
             <!-- tells the JDK to use this file instead of /etc/hosts -->
@@ -374,7 +374,7 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
                 --add-opens=java.base/java.time=ALL-UNNAMED
                 --add-opens=java.base/java.text=ALL-UNNAMED
                 --add-opens=java.management/sun.management=ALL-UNNAMED
-                --add-opens java.desktop/java.awt.font=ALL-UNNAMED
+                --add-opens=java.desktop/java.awt.font=ALL-UNNAMED
               </argLine>
               <systemPropertyVariables>
                 <angela.java.opts>
@@ -402,7 +402,7 @@ println(new File(project.build.directory, "fake-hosts.txt").text)
                   --add-opens=java.base/java.time=ALL-UNNAMED
                   --add-opens=java.base/java.text=ALL-UNNAMED
                   --add-opens=java.management/sun.management=ALL-UNNAMED
-                  --add-opens java.desktop/java.awt.font=ALL-UNNAMED
+                  --add-opens=java.desktop/java.awt.font=ALL-UNNAMED
                   -Dangela.agent.debug=false
                   -Djdk.net.hosts.file=${project.build.directory}/fake-hosts.txt
                   -DIGNITE_UPDATE_NOTIFIER=false
