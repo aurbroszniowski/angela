@@ -16,11 +16,11 @@
  */
 package org.terracotta.angela.agent.com;
 
-import org.apache.ignite.lang.IgniteCallable;
-import org.apache.ignite.lang.IgniteRunnable;
 import org.junit.Before;
 import org.junit.Test;
 import org.terracotta.angela.agent.Agent;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 import org.terracotta.angela.common.clientconfig.ClientId;
 import org.terracotta.angela.common.clientconfig.ClientSymbolicName;
 import org.terracotta.angela.common.distribution.Distribution;
@@ -104,14 +104,14 @@ public class IgniteFreeExecutorIT {
 
   @Test
   public void testExecute() throws ExecutionException, InterruptedException {
-    executor.execute(AgentID.local(), (IgniteRunnable) () -> counter.incrementAndGet());
+    executor.execute(AgentID.local(), (RemoteRunnable) () -> counter.incrementAndGet());
     assertEquals(1, counter.get());
 
-    executor.executeAsync(AgentID.local(), (IgniteRunnable) () -> counter.incrementAndGet()).get();
+    executor.executeAsync(AgentID.local(), (RemoteRunnable) () -> counter.incrementAndGet()).get();
     assertEquals(2, counter.get());
 
-    assertEquals(3, executor.execute(AgentID.local(), (IgniteCallable<? extends Object>) () -> counter.incrementAndGet()));
-    assertEquals(4, executor.executeAsync(AgentID.local(), (IgniteCallable<? extends Object>) () -> counter.incrementAndGet()).get());
+    assertEquals(3, executor.execute(AgentID.local(), (RemoteCallable<? extends Object>) () -> counter.incrementAndGet()));
+    assertEquals(4, executor.executeAsync(AgentID.local(), (RemoteCallable<? extends Object>) () -> counter.incrementAndGet()).get());
   }
 
   @Test

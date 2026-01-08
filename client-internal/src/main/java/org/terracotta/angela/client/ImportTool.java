@@ -18,8 +18,6 @@ package org.terracotta.angela.client;
 
 import java.util.Collections;
 import java.util.Map;
-import org.apache.ignite.lang.IgniteCallable;
-import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.AgentController;
@@ -40,6 +38,8 @@ import org.terracotta.angela.common.net.PortAllocator;
 import org.terracotta.angela.common.tcconfig.License;
 import org.terracotta.angela.common.tcconfig.SecurityRootDirectory;
 import org.terracotta.angela.common.topology.InstanceId;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 
 /**
  *
@@ -86,7 +86,7 @@ public class ImportTool implements AutoCloseable {
 
     logger.info("Installing import-tool: {} on: {}", instanceId, executor.getTarget());
 
-    IgniteCallable<Boolean> callable = () -> AgentController.getInstance().installImportTool(instanceId, hostName, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
+    RemoteCallable<Boolean> callable = () -> AgentController.getInstance().installImportTool(instanceId, hostName, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
     boolean isRemoteInstallationSuccessful = executor.execute(callable);
     if (!isRemoteInstallationSuccessful && (kitInstallationPath == null || !KIT_COPY.getBooleanValue())) {
       try {
@@ -104,7 +104,7 @@ public class ImportTool implements AutoCloseable {
     final Distribution distribution = configContext.getDistribution();
     final String hostName = configContext.getHostName();
     final String kitInstallationName = localKitManager.getKitInstallationName();
-    IgniteRunnable uninstaller = () -> AgentController.getInstance().uninstallImportTool(instanceId, distribution, hostName, kitInstallationName);
+    RemoteRunnable uninstaller = () -> AgentController.getInstance().uninstallImportTool(instanceId, distribution, hostName, kitInstallationName);
     executor.execute(uninstaller);
     return this;
   }

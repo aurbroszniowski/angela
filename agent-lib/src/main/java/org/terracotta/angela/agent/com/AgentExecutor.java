@@ -16,10 +16,10 @@
  */
 package org.terracotta.angela.agent.com;
 
-import org.apache.ignite.lang.IgniteCallable;
-import org.apache.ignite.lang.IgniteRunnable;
 import org.terracotta.angela.common.distribution.Distribution;
 import org.terracotta.angela.common.topology.InstanceId;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -48,17 +48,17 @@ public class AgentExecutor {
 
   // for target
 
-  public void execute(IgniteRunnable job) {
+  public void execute(RemoteRunnable job) {
     executor.execute(agentID, job);
   }
 
-  public Future<Void> executeAsync(IgniteRunnable job) {
+  public Future<Void> executeAsync(RemoteRunnable job) {
     return executor.executeAsync(agentID, job);
   }
 
-  public <R> R execute(IgniteCallable<R> job) {return executor.execute(agentID, job);}
+  public <R> R execute(RemoteCallable<R> job) {return executor.execute(agentID, job);}
 
-  public <R> Future<R> executeAsync(IgniteCallable<R> job) {return executor.executeAsync(agentID, job);}
+  public <R> Future<R> executeAsync(RemoteCallable<R> job) {return executor.executeAsync(agentID, job);}
 
   public void uploadKit(InstanceId instanceId, Distribution distribution, String kitInstallationName, Path kitInstallationPath) throws IOException, InterruptedException {
     executor.uploadKit(agentID, instanceId, distribution, kitInstallationName, kitInstallationPath);

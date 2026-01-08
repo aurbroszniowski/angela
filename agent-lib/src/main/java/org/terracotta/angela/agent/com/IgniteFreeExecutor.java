@@ -20,6 +20,8 @@ import org.apache.ignite.lang.IgniteCallable;
 import org.apache.ignite.lang.IgniteRunnable;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.agent.client.RemoteClientManager;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 import org.terracotta.angela.agent.kit.RemoteKitManager;
 import org.terracotta.angela.common.clientconfig.ClientId;
 import org.terracotta.angela.common.cluster.Cluster;
@@ -128,7 +130,7 @@ public class IgniteFreeExecutor implements Executor {
   }
 
   @Override
-  public Future<Void> executeAsync(AgentID agentID, IgniteRunnable job) {
+  public Future<Void> executeAsync(AgentID agentID, RemoteRunnable job) {
     CompletableFuture<Void> future = new CompletableFuture<>();
     try {
       job.run();
@@ -140,7 +142,7 @@ public class IgniteFreeExecutor implements Executor {
   }
 
   @Override
-  public <R> Future<R> executeAsync(AgentID agentID, IgniteCallable<R> job) {
+  public <R> Future<R> executeAsync(AgentID agentID, RemoteCallable<R> job) {
     CompletableFuture<R> future = new CompletableFuture<>();
     try {
       future.complete(job.call());

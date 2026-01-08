@@ -48,10 +48,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.terracotta</groupId>
-      <artifactId>angela-common</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
     </dependency>

@@ -16,8 +16,6 @@
  */
 package org.terracotta.angela.client;
 
-import org.apache.ignite.lang.IgniteCallable;
-import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.AgentController;
@@ -35,6 +33,8 @@ import org.terracotta.angela.common.tcconfig.SecurityRootDirectory;
 import org.terracotta.angela.common.tcconfig.ServerSymbolicName;
 import org.terracotta.angela.common.topology.InstanceId;
 import org.terracotta.angela.common.topology.Topology;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -114,7 +114,7 @@ public class ClusterTool implements AutoCloseable {
 
     logger.info("Installing config-tool: {} on: {}", instanceId, executor.getTarget());
 
-    IgniteCallable<Boolean> callable = () -> AgentController.getInstance().installClusterTool(instanceId, hostName, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
+    RemoteCallable<Boolean> callable = () -> AgentController.getInstance().installClusterTool(instanceId, hostName, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
     boolean isRemoteInstallationSuccessful = executor.execute(callable);
     if (!isRemoteInstallationSuccessful && (kitInstallationPath == null || !KIT_COPY.getBooleanValue())) {
       try {
@@ -132,7 +132,7 @@ public class ClusterTool implements AutoCloseable {
     final Distribution distribution = configContext.getDistribution();
     final String hostName = configContext.getHostName();
     final String kitInstallationName = localKitManager.getKitInstallationName();
-    IgniteRunnable uninstaller = () -> AgentController.getInstance().uninstallClusterTool(instanceId, distribution, hostName, kitInstallationName);
+    RemoteRunnable uninstaller = () -> AgentController.getInstance().uninstallClusterTool(instanceId, distribution, hostName, kitInstallationName);
     executor.execute(uninstaller);
     return this;
   }

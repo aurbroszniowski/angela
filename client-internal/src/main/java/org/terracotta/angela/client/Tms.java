@@ -16,7 +16,6 @@
  */
 package org.terracotta.angela.client;
 
-import org.apache.ignite.lang.IgniteCallable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.AgentController;
@@ -35,6 +34,7 @@ import org.terracotta.angela.common.tms.security.config.TmsClientSecurityConfig;
 import org.terracotta.angela.common.tms.security.config.TmsServerSecurityConfig;
 import org.terracotta.angela.common.topology.InstanceId;
 import org.terracotta.angela.common.util.HostPort;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
 
 import java.util.Collections;
 import java.util.Map;
@@ -185,7 +185,7 @@ public class Tms implements AutoCloseable {
     localKitManager.setupLocalInstall(license, kitInstallationPath, OFFLINE.getBooleanValue(), tcEnv);
     final String kitInstallationName = localKitManager.getKitInstallationName();
 
-    IgniteCallable<Boolean> callable = () -> AgentController.getInstance().installTms(instanceId, tmsHostname, distribution, license, tmsServerSecurityConfig, kitInstallationName, tcEnv, tmsHostname, kitInstallationPath);
+    RemoteCallable<Boolean> callable = () -> AgentController.getInstance().installTms(instanceId, tmsHostname, distribution, license, tmsServerSecurityConfig, kitInstallationName, tcEnv, tmsHostname, kitInstallationPath);
     boolean isRemoteInstallationSuccessful = executor.execute(agentID, callable);
 
     if (!isRemoteInstallationSuccessful) {

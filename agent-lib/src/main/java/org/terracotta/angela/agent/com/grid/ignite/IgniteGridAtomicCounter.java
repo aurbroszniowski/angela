@@ -14,44 +14,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.terracotta.angela.common.cluster;
+package org.terracotta.angela.agent.com.grid.ignite;
 
+import org.apache.ignite.Ignite;
+import org.apache.ignite.IgniteAtomicLong;
 import org.terracotta.angela.agent.com.grid.GridAtomicCounter;
 
-import java.io.Serializable;
+class IgniteGridAtomicCounter implements GridAtomicCounter {
+  private final IgniteAtomicLong igniteCounter;
 
-public class AtomicCounter implements Serializable {
-  private static final long serialVersionUID = 1L;
-  private final String name;
-  private final GridAtomicCounter delegate;
-
-  AtomicCounter(GridAtomicCounter delegate, String name) {
-    this.delegate = delegate;
-    this.name = name;
-  }
-
-  public long incrementAndGet() {
-    return delegate.incrementAndGet();
-  }
-
-  public long getAndIncrement() {
-    return delegate.getAndIncrement();
-  }
-
-  public long get() {
-    return delegate.get();
-  }
-
-  public long getAndSet(long value) {
-    return delegate.getAndSet(value);
-  }
-
-  public boolean compareAndSet(long expVal, long newVal) {
-    return delegate.compareAndSet(expVal, newVal);
+  IgniteGridAtomicCounter(Ignite ignite, String name, long initVal) {
+    this.igniteCounter = ignite.atomicLong("Atomic-Counter-" + name, initVal, true);
   }
 
   @Override
-  public String toString() {
-    return name + ":" + get();
+  public long incrementAndGet() {
+    return igniteCounter.incrementAndGet();
+  }
+
+  @Override
+  public long getAndIncrement() {
+    return igniteCounter.getAndIncrement();
+  }
+
+  @Override
+  public long get() {
+    return igniteCounter.get();
+  }
+
+  @Override
+  public long getAndSet(long value) {
+    return igniteCounter.getAndSet(value);
+  }
+
+  @Override
+  public boolean compareAndSet(long expect, long update) {
+    return igniteCounter.compareAndSet(expect, update);
   }
 }

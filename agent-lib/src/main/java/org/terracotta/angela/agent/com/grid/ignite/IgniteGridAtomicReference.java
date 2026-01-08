@@ -14,37 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.terracotta.angela.common.cluster;
+package org.terracotta.angela.agent.com.grid.ignite;
 
+import org.apache.ignite.Ignite;
+import org.apache.ignite.IgniteAtomicReference;
 import org.terracotta.angela.agent.com.grid.GridAtomicReference;
 
-import java.io.Serializable;
+class IgniteGridAtomicReference<T> implements GridAtomicReference<T> {
+  private final IgniteAtomicReference<T> igniteReference;
 
-public class AtomicReference<T> implements Serializable {
-  private static final long serialVersionUID = 1L;
-
-  private final GridAtomicReference<T> delegate;
-  private final String name;
-
-  AtomicReference(GridAtomicReference<T> delegate, String name) {
-    this.delegate = delegate;
-    this.name = name;
-  }
-
-  public void set(T value) {
-    delegate.set(value);
-  }
-
-  public boolean compareAndSet(T expect, T update) {
-    return delegate.compareAndSet(expect, update);
-  }
-
-  public T get() {
-    return delegate.get();
+  IgniteGridAtomicReference(Ignite ignite, String name, T initialValue) {
+    this.igniteReference = ignite.atomicReference("Atomic-Reference-" + name, initialValue, true);
   }
 
   @Override
-  public String toString() {
-    return name + ":" + get();
+  public void set(T value) {
+    igniteReference.set(value);
+  }
+
+  @Override
+  public boolean compareAndSet(T expect, T update) {
+    return igniteReference.compareAndSet(expect, update);
+  }
+
+  @Override
+  public T get() {
+    return igniteReference.get();
   }
 }

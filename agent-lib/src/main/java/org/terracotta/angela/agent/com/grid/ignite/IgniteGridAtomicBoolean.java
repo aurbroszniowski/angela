@@ -14,40 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.terracotta.angela.common.cluster;
+package org.terracotta.angela.agent.com.grid.ignite;
 
+import org.apache.ignite.Ignite;
+import org.apache.ignite.IgniteAtomicLong;
 import org.terracotta.angela.agent.com.grid.GridAtomicBoolean;
 
-import java.io.Serializable;
+class IgniteGridAtomicBoolean implements GridAtomicBoolean {
+  private final IgniteAtomicLong igniteCounter;
 
-public class AtomicBoolean implements Serializable {
-  private static final long serialVersionUID = 1L;
-  private final String name;
-  private final GridAtomicBoolean delegate;
-
-  AtomicBoolean(GridAtomicBoolean delegate, String name) {
-    this.delegate = delegate;
-    this.name = name;
-  }
-
-  public boolean get() {
-    return delegate.get();
-  }
-
-  public void set(boolean value) {
-    delegate.set(value);
-  }
-
-  public boolean getAndSet(boolean value) {
-    return delegate.getAndSet(value);
-  }
-
-  public boolean compareAndSet(boolean expVal, boolean newVal) {
-    return delegate.compareAndSet(expVal, newVal);
+  IgniteGridAtomicBoolean(Ignite ignite, String name, boolean initVal) {
+    this.igniteCounter = ignite.atomicLong("Atomic-Boolean-" + name, initVal ? 1L : 0L, true);
   }
 
   @Override
-  public String toString() {
-    return name + ":" + get();
+  public boolean get() {
+    return igniteCounter.get() != 0L;
+  }
+
+  @Override
+  public void set(boolean value) {
+    igniteCounter.getAndSet(value ? 1L : 0L);
+  }
+
+  @Override
+  public boolean getAndSet(boolean value) {
+    return igniteCounter.getAndSet(value ? 1L : 0L) != 0L;
+  }
+
+  @Override
+  public boolean compareAndSet(boolean expect, boolean update) {
+    return igniteCounter.compareAndSet(expect ? 1L : 0L, update ? 1L : 0L);
   }
 }

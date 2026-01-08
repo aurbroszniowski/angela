@@ -16,8 +16,6 @@
  */
 package org.terracotta.angela.client;
 
-import org.apache.ignite.lang.IgniteCallable;
-import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.AgentController;
@@ -40,6 +38,8 @@ import org.terracotta.angela.common.tcconfig.TcConfig;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
 import org.terracotta.angela.common.topology.InstanceId;
 import org.terracotta.angela.common.topology.Topology;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 
 import java.io.File;
 import java.io.IOException;
@@ -155,7 +155,7 @@ public class Tsa implements AutoCloseable {
     if (kitInstallationPath == null || KIT_COPY.getBooleanValue()) {
       // "kitInstallationPath" is either not provided (=> kit download)
       // or it is provided but we specifically ask for a kit copy
-      final IgniteCallable<Boolean> installClosure = () -> AgentController.getInstance().installTsa(instanceId, terracottaServer, license, kitInstallationName, distribution, topology, null);
+      final RemoteCallable<Boolean> installClosure = () -> AgentController.getInstance().installTsa(instanceId, terracottaServer, license, kitInstallationName, distribution, topology, null);
       boolean isRemoteInstallationSuccessful = executor.execute(agentID, installClosure);
       if (!isRemoteInstallationSuccessful) {
         try {
@@ -204,7 +204,7 @@ public class Tsa implements AutoCloseable {
 
     logger.info("Uninstalling TSA: {} from: {}", instanceId, agentID);
 
-    IgniteRunnable uninstaller = () -> AgentController.getInstance().uninstallTsa(instanceId, topology, terracottaServer, kitInstallationName, kitInstallationPath);
+    RemoteRunnable uninstaller = () -> AgentController.getInstance().uninstallTsa(instanceId, topology, terracottaServer, kitInstallationName, kitInstallationPath);
     executor.execute(agentID, uninstaller);
   }
 
@@ -243,7 +243,7 @@ public class Tsa implements AutoCloseable {
         String whatFor = SERVER_START_PREFIX + terracottaServer.getServerSymbolicName().getSymbolicName();
         TerracottaCommandLineEnvironment cliEnv = tsaConfigurationContext.getTerracottaCommandLineEnvironment(whatFor);
         Duration inactivityKillerDelay = tsaConfigurationContext.getInactivityKillerDelay();
-        IgniteRunnable tsaCreator = () -> AgentController.getInstance().createTsa(instanceId, terracottaServer, cliEnv, envOverrides, Arrays.asList(startUpArgs), inactivityKillerDelay);
+        RemoteRunnable tsaCreator = () -> AgentController.getInstance().createTsa(instanceId, terracottaServer, cliEnv, envOverrides, Arrays.asList(startUpArgs), inactivityKillerDelay);
         executor.execute(agentID, tsaCreator);
         return this;
     }
@@ -267,7 +267,7 @@ public class Tsa implements AutoCloseable {
 
   public Tsa start(TerracottaServer terracottaServer, Map<String, String> envOverrides, String... startUpArgs) {
     spawn(terracottaServer, envOverrides, startUpArgs);
-    IgniteRunnable runnable = () -> AgentController.getInstance().waitForTsaInState(instanceId, terracottaServer, of(STARTED_AS_ACTIVE, STARTED_AS_PASSIVE, STARTED_IN_DIAGNOSTIC_MODE, START_SUSPENDED, STOPPED));
+    RemoteRunnable runnable = () -> AgentController.getInstance().waitForTsaInState(instanceId, terracottaServer, of(STARTED_AS_ACTIVE, STARTED_AS_PASSIVE, STARTED_IN_DIAGNOSTIC_MODE, START_SUSPENDED, STOPPED));
     final AgentID agentID = executor.getAgentID(terracottaServer.getHostName());
     executor.execute(agentID, runnable);
     logger.info("TSA: {} started on: {}", instanceId, agentID);

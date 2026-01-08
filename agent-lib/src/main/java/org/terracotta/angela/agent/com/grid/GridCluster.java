@@ -14,29 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.terracotta.angela.common.cluster;
+package org.terracotta.angela.agent.com.grid;
 
-import org.terracotta.angela.agent.com.grid.GridBarrier;
+public interface GridCluster {
+  GridBarrier barrier(String name, int parties);
 
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+  GridAtomicCounter atomicCounter(String name, long initialValue);
 
-public class Barrier implements Serializable {
-  private static final long serialVersionUID = 1L;
+  GridAtomicBoolean atomicBoolean(String name, boolean initialValue);
 
-  private final GridBarrier delegate;
+  <T> GridAtomicReference<T> atomicReference(String name, T initialValue);
 
-  Barrier(GridBarrier delegate) {
-    this.delegate = delegate;
-  }
-
-  public int await() {
-    return delegate.await();
-  }
-
-  public int await(long time, TimeUnit unit) throws TimeoutException {
-    return delegate.await(time, unit);
-  }
-
+  /**
+   * @return the logical node name of the local grid member executing the current job.
+   */
+  String getLocalNodeName();
 }

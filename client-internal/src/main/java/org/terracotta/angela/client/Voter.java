@@ -16,8 +16,6 @@
  */
 package org.terracotta.angela.client;
 
-import org.apache.ignite.lang.IgniteCallable;
-import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.AgentController;
@@ -33,6 +31,8 @@ import org.terracotta.angela.common.net.PortAllocator;
 import org.terracotta.angela.common.tcconfig.License;
 import org.terracotta.angela.common.tcconfig.SecurityRootDirectory;
 import org.terracotta.angela.common.topology.InstanceId;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -157,7 +157,7 @@ public class Voter implements AutoCloseable {
     final AgentID agentID = executor.getAgentID(terracottaVoter.getHostName());
     final String kitInstallationName = localKitManager.getKitInstallationName();
 
-    IgniteCallable<Boolean> callable = () -> AgentController.getInstance().installVoter(instanceId, terracottaVoter, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
+    RemoteCallable<Boolean> callable = () -> AgentController.getInstance().installVoter(instanceId, terracottaVoter, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
 
     logger.info("Installing Voter: {} on: {}", instanceId, agentID);
 
@@ -192,7 +192,7 @@ public class Voter implements AutoCloseable {
 
     logger.info("Uninstalling Voter: {} from: {}", instanceId, agentID);
 
-    IgniteRunnable uninstaller = () -> AgentController.getInstance().uninstallVoter(instanceId, distribution, terracottaVoter, kitInstallationName);
+    RemoteRunnable uninstaller = () -> AgentController.getInstance().uninstallVoter(instanceId, distribution, terracottaVoter, kitInstallationName);
     executor.execute(agentID, uninstaller);
   }
 }

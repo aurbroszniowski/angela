@@ -37,16 +37,6 @@
     </dependency>
     <dependency>
       <groupId>org.terracotta</groupId>
-      <artifactId>angela-common</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.terracotta</groupId>
       <artifactId>angela-agent-lib</artifactId>
       <exclusions>
         <exclusion>

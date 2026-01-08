@@ -18,7 +18,6 @@ package org.terracotta.angela.client.filesystem;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.io.IOUtils;
-import org.apache.ignite.IgniteException;
 import org.terracotta.angela.agent.AgentController;
 import org.terracotta.angela.agent.com.AgentExecutor;
 
@@ -114,8 +113,8 @@ public class RemoteFolder extends RemoteFile {
     byte[] bytes;
     try {
       bytes = agentExecutor.execute(() -> AgentController.getInstance().downloadFolder(foldername));
-    } catch (IgniteException ie) {
-      throw new IOException("Error downloading remote folder '" + foldername + "' into local folder '" + localPath + "'", ie);
+    } catch (RuntimeException e) {
+      throw new IOException("Error downloading remote folder '" + foldername + "' into local folder '" + localPath + "'", e);
     }
 
     Files.createDirectories(localPath);

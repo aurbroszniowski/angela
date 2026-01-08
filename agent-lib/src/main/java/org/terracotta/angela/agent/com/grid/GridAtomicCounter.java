@@ -14,29 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.terracotta.angela.common.cluster;
+package org.terracotta.angela.agent.com.grid;
 
-import org.terracotta.angela.agent.com.grid.GridBarrier;
+public interface GridAtomicCounter {
+  long incrementAndGet();
 
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+  long getAndIncrement();
 
-public class Barrier implements Serializable {
-  private static final long serialVersionUID = 1L;
+  long get();
 
-  private final GridBarrier delegate;
+  long getAndSet(long value);
 
-  Barrier(GridBarrier delegate) {
-    this.delegate = delegate;
-  }
-
-  public int await() {
-    return delegate.await();
-  }
-
-  public int await(long time, TimeUnit unit) throws TimeoutException {
-    return delegate.await(time, unit);
-  }
-
+  boolean compareAndSet(long expect, long update);
 }

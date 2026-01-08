@@ -16,7 +16,6 @@
  */
 package org.terracotta.angela.client.net;
 
-import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.AgentController;
@@ -28,6 +27,7 @@ import org.terracotta.angela.common.tcconfig.ServerSymbolicName;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
 import org.terracotta.angela.common.topology.InstanceId;
 import org.terracotta.angela.common.topology.Topology;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -124,11 +124,11 @@ public class ServerToServerDisruptor implements Disruptor {
     return linkedServers;
   }
 
-  private static IgniteRunnable blockRemotely(InstanceId instanceId, TerracottaServer server, Collection<TerracottaServer> otherServers) {
+  private static RemoteRunnable blockRemotely(InstanceId instanceId, TerracottaServer server, Collection<TerracottaServer> otherServers) {
     return () -> AgentController.getInstance().disrupt(instanceId, server, otherServers);
   }
 
-  private static IgniteRunnable undisruptRemotely(InstanceId instanceId, TerracottaServer server, Collection<TerracottaServer> otherServers) {
+  private static RemoteRunnable undisruptRemotely(InstanceId instanceId, TerracottaServer server, Collection<TerracottaServer> otherServers) {
     return () -> AgentController.getInstance().undisrupt(instanceId, server, otherServers);
   }
 

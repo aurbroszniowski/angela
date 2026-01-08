@@ -18,12 +18,15 @@ package org.terracotta.angela.agent.com;
 
 import org.apache.ignite.Ignite;
 import org.apache.ignite.configuration.CollectionConfiguration;
-import org.apache.ignite.lang.IgniteCallable;
-import org.apache.ignite.lang.IgniteRunnable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.Agent;
 import org.terracotta.angela.agent.client.RemoteClientManager;
+import org.terracotta.angela.agent.com.grid.GridRemoteCallableJob;
+import org.terracotta.angela.agent.com.grid.GridRemoteRunnableJob;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
+import org.terracotta.angela.agent.com.grid.RemoteRunnable;
+import org.terracotta.angela.agent.com.grid.ignite.IgniteGridCluster;
 import org.terracotta.angela.agent.kit.RemoteKitManager;
 import org.terracotta.angela.common.clientconfig.ClientId;
 import org.terracotta.angela.common.cluster.Cluster;
@@ -56,6 +59,7 @@ public class IgniteLocalExecutor implements Executor {
   protected final Ignite ignite;
   protected final AgentID agentID;
   protected final IgniteAgentGroup agentGroup;
+  private final IgniteGridCluster gridCluster;
 
   public IgniteLocalExecutor(Agent agent) {
     this(agent.getGroupId(), agent.getAgentID(), agent.getIgnite());
@@ -66,6 +70,7 @@ public class IgniteLocalExecutor implements Executor {
     this.agentID = agentID;
     this.ignite = ignite;
     this.agentGroup = new IgniteAgentGroup(group, agentID, ignite);
+    this.gridCluster = new IgniteGridCluster(ignite);
   }
 
   public Ignite getIgnite() {
@@ -142,27 +147,27 @@ public class IgniteLocalExecutor implements Executor {
 
   @Override
   public Cluster getCluster() {
-    return new Cluster(ignite, agentID, null);
+    return new Cluster(gridCluster, agentID, null);
   }
 
   @Override
   public Cluster getCluster(ClientId clientId) {
-    return new Cluster(ignite, agentID, clientId);
+    return new Cluster(gridCluster, agentID, clientId);
   }
 
   @Override
-  public Future<Void> executeAsync(AgentID agentID, IgniteRunnable job) {
+  public Future<Void> executeAsync(AgentID agentID, RemoteRunnable job) {
     logger.debug("Executing job on: {}", agentID);
     return agentGroup.clusterGroup(agentID)
-        .map(clusterGroup -> new IgniteFutureAdapter<>(agentID, ignite.compute(clusterGroup).runAsync(job)))
+        .map(clusterGroup -> new IgniteFutureAdapter<>(agentID, ignite.compute(clusterGroup).runAsync(new GridRemoteRunnableJob(job))))
         .orElseThrow(() -> new IllegalArgumentException("No agent found matching: " + agentID + " in group " + group));
   }
 
   @Override
-  public <R> Future<R> executeAsync(AgentID agentID, IgniteCallable<R> job) {
+  public <R> Future<R> executeAsync(AgentID agentID, RemoteCallable<R> job) {
     logger.debug("Executing job on: {}", agentID);
     return agentGroup.clusterGroup(agentID)
-        .map(clusterGroup -> new IgniteFutureAdapter<>(agentID, ignite.compute(clusterGroup).callAsync(job)))
+        .map(clusterGroup -> new IgniteFutureAdapter<>(agentID, ignite.compute(clusterGroup).callAsync(new GridRemoteCallableJob<>(job))))
         .orElseThrow(() -> new IllegalArgumentException("No agent found matching: " + agentID + " in group " + group));
   }
 

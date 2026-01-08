@@ -16,7 +16,6 @@
  */
 package org.terracotta.angela.client;
 
-import org.apache.ignite.lang.IgniteCallable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.terracotta.angela.agent.AgentController;
@@ -36,6 +35,7 @@ import org.terracotta.angela.common.tcconfig.ServerSymbolicName;
 import org.terracotta.angela.common.tcconfig.TerracottaServer;
 import org.terracotta.angela.common.topology.InstanceId;
 import org.terracotta.angela.common.topology.Topology;
+import org.terracotta.angela.agent.com.grid.RemoteCallable;
 
 import java.util.*;
 
@@ -419,7 +419,7 @@ public class ConfigTool implements AutoCloseable {
     logger.info("Installing config-tool: {} on: {}", instanceId, executor.getTarget());
     final String hostName = configContext.getHostName();
     final String kitInstallationName = localKitManager.getKitInstallationName();
-    final IgniteCallable<Boolean> callable = () -> AgentController.getInstance().installConfigTool(instanceId, hostName, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
+    final RemoteCallable<Boolean> callable = () -> AgentController.getInstance().installConfigTool(instanceId, hostName, distribution, license, kitInstallationName, securityRootDirectory, tcEnv, kitInstallationPath);
     boolean isRemoteInstallationSuccessful = executor.execute(callable);
     if (!isRemoteInstallationSuccessful && (kitInstallationPath == null || !KIT_COPY.getBooleanValue())) {
       try {
