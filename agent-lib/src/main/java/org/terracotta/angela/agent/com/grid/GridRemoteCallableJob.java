@@ -45,11 +45,11 @@ public final class GridRemoteCallableJob<R> implements IgniteCallable<R>, GridPe
 
   @Override
   public Class<?> deployClass() {
-    return getClass();
+    return delegate == null ? getClass() : delegate.getClass();
   }
 
   @Override
   public ClassLoader classLoader() {
-    return getClass().getClassLoader();
+    return delegate == null ? getClass().getClassLoader() : delegate.getClass().getClassLoader();
   }
 }
